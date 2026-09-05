@@ -13,6 +13,12 @@ _Static_assert(
 _Static_assert(
     offsetof(phi_render_config_t, custom_encoder) > offsetof(phi_render_config_t, mpeg4),
     "render config field order changed");
+_Static_assert(
+    offsetof(phi_chart_info_view_t, name) > offsetof(phi_chart_info_view_t, has_uploader),
+    "chart info view field order changed");
+_Static_assert(
+    offsetof(phi_chart_info_view_t, tags) > offsetof(phi_chart_info_view_t, tip),
+    "chart info tags field order changed");
 
 int main(void) {
     phi_context_options_t options = {0};

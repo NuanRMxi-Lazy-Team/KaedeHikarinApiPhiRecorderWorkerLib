@@ -1,10 +1,12 @@
 #![allow(non_camel_case_types)]
 
 mod abi;
+mod chart;
 mod config;
 mod context;
 
 pub use abi::*;
+pub use chart::phi_chart_info;
 pub use context::phi_context;
 
 #[no_mangle]

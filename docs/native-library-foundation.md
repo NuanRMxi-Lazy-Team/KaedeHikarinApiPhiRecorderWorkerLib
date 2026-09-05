@@ -12,6 +12,10 @@ that every step remains independently reversible.
 - `phi_context_get_last_error` uses a caller-owned UTF-8 buffer.
 - `phi_render_config_init_default` provides code-defined defaults.
 - `phi_render_config_validate` checks the ABI header.
+- `phi_chart_info_load` parses a directory or chart archive through `phire`
+  without using Tauri or the process working directory.
+- `phi_chart_info_get_view` exposes a borrowed, complete ChartInfo view.
+- `phi_chart_info_set_view` deep-copies the complete view before replacement.
 
 ## ABI rules
 
@@ -22,6 +26,8 @@ that every step remains independently reversible.
 - Boolean values use `uint8_t`.
 - No Rust-owned value crosses the C ABI by value.
 - Output strings do not include a terminating NUL byte.
+- ChartInfo view strings and tag arrays are borrowed until the next mutation or
+  destruction of that ChartInfo handle.
 - The callback and job API will be added only after the renderer-host protocol
   and cancellation lifecycle are verified.
 

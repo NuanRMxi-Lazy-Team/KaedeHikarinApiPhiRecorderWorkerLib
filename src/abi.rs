@@ -25,6 +25,10 @@ pub const PHI_STATUS_INVALID_CONFIG: phi_status_t = 14;
 
 pub const PHI_CHALLENGE_COLOR_RAINBOW: i32 = 5;
 pub const PHI_AUDIO_MIX_MODE_OPTIMIZED: i32 = 1;
+pub const PHI_CHART_FORMAT_RPE: i32 = 0;
+pub const PHI_CHART_FORMAT_PEC: i32 = 1;
+pub const PHI_CHART_FORMAT_PGR: i32 = 2;
+pub const PHI_CHART_FORMAT_PBC: i32 = 3;
 
 #[repr(C)]
 #[derive(Clone, Copy)]
@@ -66,6 +70,62 @@ pub struct phi_context_options_t {
     pub ffmpeg_path: phi_string_view_t,
     pub temp_dir: phi_string_view_t,
     pub renderer_host_path: phi_string_view_t,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct phi_chart_info_view_t {
+    pub struct_size: u32,
+    pub abi_version: u32,
+
+    pub id: i32,
+    pub has_id: u8,
+    pub guid: phi_string_view_t,
+    pub has_guid: u8,
+    pub uploader: i32,
+    pub has_uploader: u8,
+
+    pub name: phi_string_view_t,
+    pub difficulty: f32,
+    pub level: phi_string_view_t,
+    pub charter: phi_string_view_t,
+    pub composer: phi_string_view_t,
+    pub illustrator: phi_string_view_t,
+    pub chart: phi_string_view_t,
+    pub format: i32,
+    pub has_format: u8,
+    pub music: phi_string_view_t,
+    pub illustration: phi_string_view_t,
+    pub unlock_video: phi_string_view_t,
+    pub has_unlock_video: u8,
+
+    pub preview_start: f64,
+    pub preview_end: f64,
+    pub has_preview_end: u8,
+    pub aspect_ratio: f32,
+    pub force_aspect_ratio: u8,
+    pub background_dim: f32,
+    pub line_length: f32,
+    pub offset: f64,
+    pub tip: phi_string_view_t,
+    pub has_tip: u8,
+    pub tags: *const phi_string_view_t,
+    pub tag_count: usize,
+
+    pub intro: phi_string_view_t,
+    pub hold_partial_cover: u8,
+    pub negative_length_hold: u8,
+    pub note_uniform_scale: u8,
+    pub score_total: u32,
+    pub hold_particle_interval_ratio: f32,
+    pub fold_animation: u8,
+
+    pub created: phi_string_view_t,
+    pub has_created: u8,
+    pub updated: phi_string_view_t,
+    pub has_updated: u8,
+    pub chart_updated: phi_string_view_t,
+    pub has_chart_updated: u8,
 }
 
 #[repr(C)]

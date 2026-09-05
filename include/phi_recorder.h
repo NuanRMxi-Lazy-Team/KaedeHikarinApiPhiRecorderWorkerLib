@@ -140,6 +140,61 @@ typedef struct phi_render_config {
 } phi_render_config_t;
 
 typedef struct phi_context phi_context_t;
+typedef struct phi_chart_info phi_chart_info_t;
+
+typedef struct phi_chart_info_view {
+    uint32_t struct_size;
+    uint32_t abi_version;
+
+    int32_t id;
+    uint8_t has_id;
+    phi_string_view_t guid;
+    uint8_t has_guid;
+    int32_t uploader;
+    uint8_t has_uploader;
+
+    phi_string_view_t name;
+    float difficulty;
+    phi_string_view_t level;
+    phi_string_view_t charter;
+    phi_string_view_t composer;
+    phi_string_view_t illustrator;
+    phi_string_view_t chart;
+    int32_t format;
+    uint8_t has_format;
+    phi_string_view_t music;
+    phi_string_view_t illustration;
+    phi_string_view_t unlock_video;
+    uint8_t has_unlock_video;
+
+    double preview_start;
+    double preview_end;
+    uint8_t has_preview_end;
+    float aspect_ratio;
+    uint8_t force_aspect_ratio;
+    float background_dim;
+    float line_length;
+    double offset;
+    phi_string_view_t tip;
+    uint8_t has_tip;
+    const phi_string_view_t* tags;
+    size_t tag_count;
+
+    phi_string_view_t intro;
+    uint8_t hold_partial_cover;
+    uint8_t negative_length_hold;
+    uint8_t note_uniform_scale;
+    uint32_t score_total;
+    float hold_particle_interval_ratio;
+    uint8_t fold_animation;
+
+    phi_string_view_t created;
+    uint8_t has_created;
+    phi_string_view_t updated;
+    uint8_t has_updated;
+    phi_string_view_t chart_updated;
+    uint8_t has_chart_updated;
+} phi_chart_info_view_t;
 
 /* Returns the ABI version implemented by the loaded library. */
 PHI_API uint32_t PHI_CALL phi_abi_version(void);
@@ -167,6 +222,26 @@ PHI_API phi_status_t PHI_CALL phi_render_config_init_default(
 
 PHI_API phi_status_t PHI_CALL phi_render_config_validate(
     const phi_render_config_t* config);
+
+PHI_API phi_status_t PHI_CALL phi_chart_info_load(
+    phi_context_t* context,
+    phi_string_view_t chart_path,
+    phi_chart_info_t** out_info);
+
+PHI_API void PHI_CALL phi_chart_info_destroy(phi_chart_info_t* info);
+
+/*
+ * The returned view borrows storage owned by info. Its pointers remain valid
+ * until the next set_view call or destroy call for the same handle.
+ */
+PHI_API phi_status_t PHI_CALL phi_chart_info_get_view(
+    const phi_chart_info_t* info,
+    phi_chart_info_view_t* out_view);
+
+/* Deep-copies all strings, timestamps and tags before replacing the handle. */
+PHI_API phi_status_t PHI_CALL phi_chart_info_set_view(
+    phi_chart_info_t* info,
+    const phi_chart_info_view_t* view);
 
 #ifdef __cplusplus
 }
