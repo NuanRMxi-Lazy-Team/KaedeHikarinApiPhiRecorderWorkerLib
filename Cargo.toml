@@ -1,0 +1,18 @@
+[package]
+name = "phi-recorder-native"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.77.2"
+license = "GPL-3.0-or-later"
+
+[lib]
+name = "phi_recorder"
+crate-type = ["cdylib", "staticlib", "rlib"]
+
+[workspace]
+resolver = "2"
+
+[profile.release]
+lto = "thin"
+strip = true
+opt-level = 3
