@@ -1690,16 +1690,34 @@ dependencies = [
 
 [[package]]
 name = "macroquad"
+version = "0.4.15"
+source = "git+https://github.com/2278535805/macroquad?rev=e60df3881813577e3cb34cd80317fca8c479f1af#e60df3881813577e3cb34cd80317fca8c479f1af"
+dependencies = [
+ "fontdue",
+ "glam 0.27.0",
+ "image",
+ "macroquad_macro 0.1.8 (git+https://github.com/2278535805/macroquad?rev=e60df3881813577e3cb34cd80317fca8c479f1af)",
+ "miniquad",
+ "quad-rand",
+]
+
+[[package]]
+name = "macroquad"
 version = "0.4.16"
 source = "git+https://github.com/2278535805/macroquad#6f24a0c9fabb265eaa70d4749efe6a7926f2341f"
 dependencies = [
  "fontdue",
  "glam 0.27.0",
  "image",
- "macroquad_macro",
+ "macroquad_macro 0.1.8 (git+https://github.com/2278535805/macroquad)",
  "miniquad",
  "quad-rand",
 ]
+
+[[package]]
+name = "macroquad_macro"
+version = "0.1.8"
+source = "git+https://github.com/2278535805/macroquad?rev=e60df3881813577e3cb34cd80317fca8c479f1af#e60df3881813577e3cb34cd80317fca8c479f1af"
 
 [[package]]
 name = "macroquad_macro"
@@ -2768,7 +2786,9 @@ version = "0.1.0"
 name = "phi-renderer-host"
 version = "0.1.0"
 dependencies = [
+ "macroquad 0.4.15",
  "phi-recorder-protocol",
+ "serde_json",
 ]
 
 [[package]]
@@ -2804,7 +2824,7 @@ dependencies = [
  "libc",
  "lru",
  "lyon",
- "macroquad",
+ "macroquad 0.4.16",
  "miniz_oxide 0.8.9",
  "nalgebra",
  "ndk-context",

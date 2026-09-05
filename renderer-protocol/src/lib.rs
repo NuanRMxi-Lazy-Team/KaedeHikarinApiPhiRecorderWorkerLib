@@ -19,6 +19,8 @@ pub enum MessageType {
     Shutdown = 6,
     ShutdownAck = 7,
     Error = 8,
+    CapabilityProbe = 9,
+    CapabilityResult = 10,
 }
 
 impl MessageType {
@@ -32,6 +34,8 @@ impl MessageType {
             6 => Ok(Self::Shutdown),
             7 => Ok(Self::ShutdownAck),
             8 => Ok(Self::Error),
+            9 => Ok(Self::CapabilityProbe),
+            10 => Ok(Self::CapabilityResult),
             _ => Err(ProtocolError::UnknownMessageType(value)),
         }
     }
@@ -208,5 +212,11 @@ mod tests {
 
         let result = read_frame(&mut encoded.as_slice()).unwrap_err();
         assert!(matches!(result, ProtocolError::PayloadTooLarge(_)));
+    }
+
+    #[test]
+    fn capability_messages_have_stable_numeric_values() {
+        assert_eq!(MessageType::CapabilityProbe as u16, 9);
+        assert_eq!(MessageType::CapabilityResult as u16, 10);
     }
 }
