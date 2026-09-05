@@ -9,6 +9,9 @@ license = "GPL-3.0-or-later"
 name = "phi_recorder"
 crate-type = ["cdylib", "staticlib", "rlib"]
 
+[dependencies]
+phi-recorder-core = { path = "renderer-core" }
+
 [workspace]
 resolver = "2"
 members = ["renderer-protocol", "renderer-host"]
