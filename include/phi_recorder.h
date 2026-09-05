@@ -38,6 +38,7 @@ typedef int32_t phi_status_t;
 #define PHI_STATUS_INTERNAL_ERROR INT32_C(11)
 #define PHI_STATUS_PANIC INT32_C(12)
 #define PHI_STATUS_CANCELED INT32_C(13)
+#define PHI_STATUS_INVALID_CONFIG INT32_C(14)
 
 typedef struct phi_string_view {
     const uint8_t* data;

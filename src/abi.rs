@@ -21,6 +21,7 @@ pub const PHI_STATUS_INVALID_STATE: phi_status_t = 10;
 pub const PHI_STATUS_INTERNAL_ERROR: phi_status_t = 11;
 pub const PHI_STATUS_PANIC: phi_status_t = 12;
 pub const PHI_STATUS_CANCELED: phi_status_t = 13;
+pub const PHI_STATUS_INVALID_CONFIG: phi_status_t = 14;
 
 pub const PHI_CHALLENGE_COLOR_RAINBOW: i32 = 5;
 pub const PHI_AUDIO_MIX_MODE_OPTIMIZED: i32 = 1;

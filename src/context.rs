@@ -1,5 +1,6 @@
 use std::{
     panic::{catch_unwind, AssertUnwindSafe},
+    path::PathBuf,
     ptr,
     sync::Mutex,
 };
@@ -8,35 +9,30 @@ use crate::abi::{
     copy_utf8, ffi_status, phi_context_options_t, phi_status_t, validate_header, write_bytes,
     PHI_STATUS_INTERNAL_ERROR, PHI_STATUS_INVALID_ARGUMENT, PHI_STATUS_OK,
 };
+use phi_recorder_core::ResourceRoots;
 
 #[repr(C)]
 pub struct phi_context {
-    #[allow(dead_code)]
-    options: OwnedContextOptions,
+    resource_roots: ResourceRoots,
     last_error: Mutex<String>,
 }
 
-#[allow(dead_code)]
-struct OwnedContextOptions {
-    assets_dir: String,
-    fonts_dir: String,
-    resource_pack_dir: String,
-    ffmpeg_path: String,
-    temp_dir: String,
-    renderer_host_path: String,
-}
+unsafe fn resource_roots_from_ffi(
+    options: &phi_context_options_t,
+) -> Result<ResourceRoots, phi_status_t> {
+    let roots = ResourceRoots {
+        assets_dir: PathBuf::from(copy_utf8(options.assets_dir)?),
+        fonts_dir: PathBuf::from(copy_utf8(options.fonts_dir)?),
+        resource_pack_dir: PathBuf::from(copy_utf8(options.resource_pack_dir)?),
+        ffmpeg_path: PathBuf::from(copy_utf8(options.ffmpeg_path)?),
+        temp_dir: PathBuf::from(copy_utf8(options.temp_dir)?),
+        renderer_host_path: PathBuf::from(copy_utf8(options.renderer_host_path)?),
+    };
 
-impl OwnedContextOptions {
-    unsafe fn from_ffi(options: &phi_context_options_t) -> Result<Self, phi_status_t> {
-        Ok(Self {
-            assets_dir: copy_utf8(options.assets_dir)?,
-            fonts_dir: copy_utf8(options.fonts_dir)?,
-            resource_pack_dir: copy_utf8(options.resource_pack_dir)?,
-            ffmpeg_path: copy_utf8(options.ffmpeg_path)?,
-            temp_dir: copy_utf8(options.temp_dir)?,
-            renderer_host_path: copy_utf8(options.renderer_host_path)?,
-        })
-    }
+    roots
+        .validate()
+        .map_err(|_| crate::PHI_STATUS_INVALID_CONFIG)?;
+    Ok(roots)
 }
 
 #[allow(dead_code)]
@@ -69,18 +65,64 @@ pub unsafe extern "C" fn phi_context_create(
             return status;
         }
 
-        let owned_options = match OwnedContextOptions::from_ffi(options) {
+        let resource_roots = match resource_roots_from_ffi(options) {
             Ok(options) => options,
             Err(status) => return status,
         };
 
         let context = Box::new(phi_context {
-            options: owned_options,
+            resource_roots,
             last_error: Mutex::new(String::new()),
         });
         *out_context = Box::into_raw(context);
         PHI_STATUS_OK
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::abi::phi_string_view_t;
+
+    fn view(value: &'static str) -> phi_string_view_t {
+        phi_string_view_t {
+            data: value.as_ptr(),
+            length: value.len(),
+        }
+    }
+
+    fn options() -> phi_context_options_t {
+        phi_context_options_t {
+            struct_size: std::mem::size_of::<phi_context_options_t>() as u32,
+            abi_version: crate::PHI_ABI_VERSION,
+            assets_dir: view("assets"),
+            fonts_dir: view("fonts"),
+            resource_pack_dir: view("respacks"),
+            ffmpeg_path: view("ffmpeg"),
+            temp_dir: view("temp"),
+            renderer_host_path: view("renderer-host"),
+        }
+    }
+
+    #[test]
+    fn context_owns_explicit_resource_roots() {
+        let options = options();
+        let roots = unsafe { resource_roots_from_ffi(&options) }.unwrap();
+
+        assert_eq!(roots.assets_dir, PathBuf::from("assets"));
+        assert_eq!(roots.ffmpeg_path, PathBuf::from("ffmpeg"));
+    }
+
+    #[test]
+    fn context_rejects_missing_resource_roots() {
+        let mut options = options();
+        options.ffmpeg_path = phi_string_view_t::empty();
+
+        assert_eq!(
+            unsafe { resource_roots_from_ffi(&options) },
+            Err(crate::PHI_STATUS_INVALID_CONFIG)
+        );
+    }
 }
 
 #[no_mangle]

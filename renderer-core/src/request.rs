@@ -18,6 +18,8 @@ impl ResourceRoots {
             ("assets_dir", &self.assets_dir),
             ("fonts_dir", &self.fonts_dir),
             ("temp_dir", &self.temp_dir),
+            ("resource_pack_dir", &self.resource_pack_dir),
+            ("ffmpeg_path", &self.ffmpeg_path),
             ("renderer_host_path", &self.renderer_host_path),
         ] {
             if path.as_os_str().is_empty() {

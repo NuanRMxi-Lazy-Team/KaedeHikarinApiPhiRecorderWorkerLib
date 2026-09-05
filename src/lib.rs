@@ -36,11 +36,19 @@ pub unsafe extern "C" fn phi_render_config_validate(
         }
 
         let config = &*config;
-        validate_header(
+        let status = validate_header(
             config.struct_size,
             config.abi_version,
             std::mem::size_of::<phi_render_config_t>(),
-        )
+        );
+        if status != PHI_STATUS_OK {
+            return status;
+        }
+
+        match config.to_core() {
+            Ok(_) => PHI_STATUS_OK,
+            Err(status) => status,
+        }
     })
 }
 
@@ -75,5 +83,20 @@ mod tests {
 
         assert_eq!(bitrate, b"28");
         assert_eq!(player_name, b"HLMC");
+    }
+
+    #[test]
+    fn default_config_converts_to_core_config() {
+        let config = phi_render_config_t::defaults();
+
+        assert!(unsafe { config.to_core() }.is_ok());
+    }
+
+    #[test]
+    fn invalid_enum_is_rejected_before_rendering() {
+        let mut config = phi_render_config_t::defaults();
+        config.audio_mix_mode = 99;
+
+        assert_eq!(unsafe { config.to_core() }, Err(PHI_STATUS_INVALID_CONFIG));
     }
 }
