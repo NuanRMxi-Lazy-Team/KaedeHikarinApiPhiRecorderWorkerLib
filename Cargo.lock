@@ -693,7 +693,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "39cab71617ae0d63f51a36d69f866391735b51691dbda63cf6f96d042b63efeb"
 dependencies = [
  "libc",
- "windows-sys 0.52.0",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -1690,34 +1690,16 @@ dependencies = [
 
 [[package]]
 name = "macroquad"
-version = "0.4.15"
-source = "git+https://github.com/2278535805/macroquad?rev=e60df3881813577e3cb34cd80317fca8c479f1af#e60df3881813577e3cb34cd80317fca8c479f1af"
-dependencies = [
- "fontdue",
- "glam 0.27.0",
- "image",
- "macroquad_macro 0.1.8 (git+https://github.com/2278535805/macroquad?rev=e60df3881813577e3cb34cd80317fca8c479f1af)",
- "miniquad",
- "quad-rand",
-]
-
-[[package]]
-name = "macroquad"
 version = "0.4.16"
 source = "git+https://github.com/2278535805/macroquad#6f24a0c9fabb265eaa70d4749efe6a7926f2341f"
 dependencies = [
  "fontdue",
  "glam 0.27.0",
  "image",
- "macroquad_macro 0.1.8 (git+https://github.com/2278535805/macroquad)",
+ "macroquad_macro",
  "miniquad",
  "quad-rand",
 ]
-
-[[package]]
-name = "macroquad_macro"
-version = "0.1.8"
-source = "git+https://github.com/2278535805/macroquad?rev=e60df3881813577e3cb34cd80317fca8c479f1af#e60df3881813577e3cb34cd80317fca8c479f1af"
 
 [[package]]
 name = "macroquad_macro"
@@ -2766,6 +2748,7 @@ dependencies = [
  "anyhow",
  "chrono",
  "phire",
+ "serde",
  "tempfile",
  "tokio",
 ]
@@ -2790,8 +2773,11 @@ dependencies = [
 name = "phi-renderer-host"
 version = "0.1.0"
 dependencies = [
- "macroquad 0.4.15",
+ "macroquad",
+ "phi-recorder-core",
  "phi-recorder-protocol",
+ "phire",
+ "sasa 0.1.0 (git+https://github.com/2278535805/sasa?rev=3f229a822c71c2391dbfc1a254dacaa0bb67d11e)",
  "serde_json",
 ]
 
@@ -2828,7 +2814,7 @@ dependencies = [
  "libc",
  "lru",
  "lyon",
- "macroquad 0.4.16",
+ "macroquad",
  "miniz_oxide 0.8.9",
  "nalgebra",
  "ndk-context",
@@ -2847,7 +2833,7 @@ dependencies = [
  "regex",
  "rfd",
  "rustc-hash",
- "sasa",
+ "sasa 0.1.0 (git+https://github.com/2278535805/sasa)",
  "serde",
  "serde_json",
  "serde_yaml",
@@ -2943,7 +2929,7 @@ version = "0.1.0"
 source = "git+https://github.com/2278535805/phire?rev=2cd1277e468e9c7eb0e2eb5e2b9295ce4a5cba79#2cd1277e468e9c7eb0e2eb5e2b9295ce4a5cba79"
 dependencies = [
  "anyhow",
- "sasa",
+ "sasa 0.1.0 (git+https://github.com/2278535805/sasa)",
  "thiserror 2.0.20",
  "tracing",
 ]
@@ -3228,7 +3214,7 @@ dependencies = [
  "errno",
  "libc",
  "linux-raw-sys",
- "windows-sys 0.52.0",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -3283,7 +3269,7 @@ dependencies = [
  "security-framework",
  "security-framework-sys",
  "webpki-root-certs",
- "windows-sys 0.52.0",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -3331,6 +3317,20 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "93fc1dc3aaa9bfed95e02e6eadabb4baf7e3078b0bd1b4d7b6b0b68378900502"
 dependencies = [
  "winapi-util",
+]
+
+[[package]]
+name = "sasa"
+version = "0.1.0"
+source = "git+https://github.com/2278535805/sasa?rev=3f229a822c71c2391dbfc1a254dacaa0bb67d11e#3f229a822c71c2391dbfc1a254dacaa0bb67d11e"
+dependencies = [
+ "anyhow",
+ "atomic_float",
+ "cpal",
+ "parking_lot",
+ "ringbuf",
+ "symphonia",
+ "thiserror 2.0.20",
 ]
 
 [[package]]
@@ -3778,7 +3778,7 @@ dependencies = [
  "getrandom 0.3.4",
  "once_cell",
  "rustix",
- "windows-sys 0.52.0",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -4269,7 +4269,7 @@ version = "0.1.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c2a7b1c03c876122aa43f3020e6c3c3ee5c05081c9a00739faf7503aeba10d22"
 dependencies = [
- "windows-sys 0.52.0",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]

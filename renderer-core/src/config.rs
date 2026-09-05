@@ -1,14 +1,17 @@
 use std::path::PathBuf;
 
+use serde::{Deserialize, Serialize};
+
 use crate::ValidationError;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Resolution {
     pub width: u32,
     pub height: u32,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
 pub enum ChallengeColor {
     White,
     Green,
@@ -37,7 +40,8 @@ impl TryFrom<i32> for ChallengeColor {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
 pub enum AudioMixMode {
     Traditional,
     Optimized,
@@ -60,7 +64,8 @@ impl TryFrom<i32> for AudioMixMode {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", default)]
 pub struct RenderConfig {
     pub resolution: Resolution,
     pub ending_length: f64,
@@ -204,6 +209,62 @@ impl Default for RenderConfig {
 }
 
 impl RenderConfig {
+    pub fn to_phire_config(&self) -> phire::config::Config {
+        phire::config::Config {
+            aggressive_chart: self.aggressive_chart,
+            aggressive_note: self.aggressive_note,
+            aggressive_particle: self.aggressive_particle,
+            challenge_color: self.challenge_color.into(),
+            challenge_rank: self.challenge_rank,
+            enter_animation: self.render_loading,
+            fxaa: self.fxaa,
+            note_scale: self.note_scale,
+            particle: self.particle,
+            player_name: self.player_name.clone(),
+            player_rks: self.player_rks,
+            sample_count: self.sample_count,
+            res_pack_path: self
+                .resource_pack_path
+                .as_ref()
+                .map(|path| path.to_string_lossy().into_owned()),
+            speed: self.speed,
+            volume_music: self.volume_music,
+            volume_sfx: self.volume_sfx,
+            chart_debug_line: self.chart_debug_line,
+            chart_debug_note: self.chart_debug_note,
+            chart_ratio: self.chart_ratio,
+            all_good: self.all_good,
+            all_bad: self.all_bad,
+            watermark: self.watermark.clone(),
+            roman: self.roman,
+            chinese: self.chinese,
+            combo: self.combo.clone(),
+            difficulty: self.difficulty.clone(),
+            judge_offset: self.judge_offset,
+            render_line: self.render_line,
+            render_line_extra: self.render_line_extra,
+            render_note: self.render_note,
+            render_double_hint: self.render_double_hint,
+            render_ui_pause: self.render_ui_pause,
+            render_ui_name: self.render_ui_name,
+            render_ui_level: self.render_ui_level,
+            render_ui_score: self.render_ui_score,
+            render_ui_combo: self.render_ui_combo,
+            render_ui_bar: self.render_ui_bar,
+            render_bg: self.render_bg,
+            render_bg_dim: self.render_bg_dim,
+            preserve_framebuffer: self.preserve_framebuffer,
+            render_extra: self.render_extra,
+            bg_blurriness: self.background_blurriness,
+            max_particles: self.max_particles as usize,
+            play_start_time: self.play_start_time,
+            play_end_time: self.play_end_time,
+            fade: self.fade,
+            alpha_tint: self.alpha_tint,
+            ..Default::default()
+        }
+    }
+
     pub fn validate(&self) -> Result<(), ValidationError> {
         if self.resolution.width == 0 || self.resolution.height == 0 {
             return Err(ValidationError::NonPositive("resolution"));
@@ -245,5 +306,18 @@ impl RenderConfig {
         }
 
         Ok(())
+    }
+}
+
+impl From<ChallengeColor> for phire::config::ChallengeModeColor {
+    fn from(value: ChallengeColor) -> Self {
+        match value {
+            ChallengeColor::White => Self::White,
+            ChallengeColor::Green => Self::Green,
+            ChallengeColor::Blue => Self::Blue,
+            ChallengeColor::Red => Self::Red,
+            ChallengeColor::Golden => Self::Golden,
+            ChallengeColor::Rainbow => Self::Rainbow,
+        }
     }
 }

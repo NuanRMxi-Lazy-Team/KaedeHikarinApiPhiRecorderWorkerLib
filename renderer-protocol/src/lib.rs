@@ -242,6 +242,10 @@ pub enum JobEvent {
         completed: u64,
         total: u64,
     },
+    ResourcesReady {
+        music_seconds: f64,
+        music_sample_rate: u32,
+    },
     Rendering {
         completed: u64,
         total: u64,

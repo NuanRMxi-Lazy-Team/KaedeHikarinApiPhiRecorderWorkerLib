@@ -1,8 +1,10 @@
 use std::path::PathBuf;
 
+use serde::{Deserialize, Serialize};
+
 use crate::{RenderConfig, ValidationError};
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ResourceRoots {
     pub assets_dir: PathBuf,
     pub fonts_dir: PathBuf,
@@ -30,7 +32,7 @@ impl ResourceRoots {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct RenderRequest {
     pub chart_path: PathBuf,
     pub output_path: PathBuf,

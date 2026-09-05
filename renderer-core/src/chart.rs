@@ -3,8 +3,10 @@ use std::{ops::DerefMut, path::Path};
 use anyhow::Result;
 use chrono::{DateTime, Utc};
 use phire::{fs, fs::FileSystem, info as phire_info};
+use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
 pub enum ChartFormat {
     Rpe,
     Pec,
@@ -34,7 +36,8 @@ impl From<ChartFormat> for phire_info::ChartFormat {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", default)]
 pub struct ChartInfo {
     pub id: Option<i32>,
     pub guid: Option<String>,
