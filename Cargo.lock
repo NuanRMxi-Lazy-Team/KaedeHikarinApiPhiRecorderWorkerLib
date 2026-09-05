@@ -5,3 +5,14 @@ version = 3
 [[package]]
 name = "phi-recorder-native"
 version = "0.1.0"
+
+[[package]]
+name = "phi-recorder-protocol"
+version = "0.1.0"
+
+[[package]]
+name = "phi-renderer-host"
+version = "0.1.0"
+dependencies = [
+ "phi-recorder-protocol",
+]

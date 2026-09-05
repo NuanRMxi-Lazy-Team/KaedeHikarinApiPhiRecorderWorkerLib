@@ -1,0 +1,13 @@
+[package]
+name = "phi-renderer-host"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.77.2"
+license = "GPL-3.0-or-later"
+
+[[bin]]
+name = "phi-renderer-host"
+path = "src/main.rs"
+
+[dependencies]
+phi-recorder-protocol = { path = "../renderer-protocol" }
