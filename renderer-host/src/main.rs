@@ -5,8 +5,9 @@ use std::{
 };
 
 use phi_recorder_protocol::{
-    decode_protocol_version, encode_error, encode_protocol_version, read_frame, write_frame, Frame,
-    MessageType, ProtocolError, PROTOCOL_VERSION,
+    decode_json, decode_protocol_version, encode_error, encode_json, encode_protocol_version,
+    read_frame, write_frame, ControlPayload, Frame, JobEvent, JobEventPayload, MessageType,
+    ProtocolError, RenderRequestPayload, JSON_SCHEMA_VERSION, PROTOCOL_VERSION,
 };
 use macroquad::miniquad::gl::glGetString;
 
@@ -70,10 +71,29 @@ fn run() -> Result<(), ProtocolError> {
                 return Ok(());
             }
             MessageType::RenderRequest => {
-                send_error(
+                let request: RenderRequestPayload = match decode_json(&frame.payload) {
+                    Ok(request) => request,
+                    Err(error) => {
+                        send_error(&mut writer, frame.request_id, &error.to_string())?;
+                        continue;
+                    }
+                };
+                if let Err(error) = request.validate() {
+                    send_error(&mut writer, frame.request_id, &error.to_string())?;
+                    continue;
+                }
+                send_event(
                     &mut writer,
                     frame.request_id,
-                    "render backend is not connected to the private host yet",
+                    JobEvent::Started,
+                )?;
+                send_event(
+                    &mut writer,
+                    frame.request_id,
+                    JobEvent::Failed {
+                        message: "render backend is not connected to the private host yet"
+                            .to_owned(),
+                    },
                 )?;
             }
             MessageType::CapabilityProbe => {
@@ -91,10 +111,21 @@ fn run() -> Result<(), ProtocolError> {
                 }
             }
             MessageType::Control => {
+                let control: ControlPayload = match decode_json(&frame.payload) {
+                    Ok(control) => control,
+                    Err(error) => {
+                        send_error(&mut writer, frame.request_id, &error.to_string())?;
+                        continue;
+                    }
+                };
+                if control.schema_version != JSON_SCHEMA_VERSION {
+                    send_error(&mut writer, frame.request_id, "unsupported control schema")?;
+                    continue;
+                }
                 send_error(
                     &mut writer,
                     frame.request_id,
-                    "control commands are not implemented in the protocol skeleton",
+                    "control command received before a render backend is connected",
                 )?;
             }
             MessageType::Hello
@@ -187,5 +218,21 @@ fn send_error<W: io::Write>(
     write_frame(
         writer,
         &Frame::new(MessageType::Error, request_id, 0, encode_error(message))?,
+    )
+}
+
+fn send_event<W: io::Write>(
+    writer: &mut W,
+    job_id: u64,
+    event: JobEvent,
+) -> Result<(), ProtocolError> {
+    let payload = encode_json(&JobEventPayload {
+        schema_version: JSON_SCHEMA_VERSION,
+        job_id,
+        event,
+    })?;
+    write_frame(
+        writer,
+        &Frame::new(MessageType::Event, job_id, 0, payload)?,
     )
 }

@@ -3,10 +3,13 @@ use std::{
     io::{self, Read, Write},
 };
 
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
+
 pub const PROTOCOL_VERSION: u16 = 1;
 pub const FRAME_MAGIC: [u8; 4] = *b"PHIR";
 pub const FRAME_HEADER_SIZE: usize = 24;
 pub const MAX_PAYLOAD_SIZE: usize = 64 * 1024 * 1024;
+pub const JSON_SCHEMA_VERSION: u16 = 1;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u16)]
@@ -77,6 +80,7 @@ pub enum ProtocolError {
     UnknownMessageType(u16),
     PayloadTooLarge(usize),
     InvalidPayload(&'static str),
+    Json(String),
 }
 
 impl fmt::Display for ProtocolError {
@@ -92,6 +96,7 @@ impl fmt::Display for ProtocolError {
             }
             Self::PayloadTooLarge(size) => write!(formatter, "payload is too large: {size}"),
             Self::InvalidPayload(message) => write!(formatter, "invalid payload: {message}"),
+            Self::Json(message) => write!(formatter, "JSON payload error: {message}"),
         }
     }
 }
@@ -176,6 +181,99 @@ pub fn encode_error(message: &str) -> Vec<u8> {
     message.as_bytes().to_vec()
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ResourceRootsPayload {
+    pub assets_dir: String,
+    pub fonts_dir: String,
+    pub resource_pack_dir: String,
+    pub ffmpeg_path: String,
+    pub temp_dir: String,
+    pub renderer_host_path: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct RenderRequestPayload {
+    pub schema_version: u16,
+    pub chart_path: String,
+    pub output_path: String,
+    pub resource_roots: ResourceRootsPayload,
+    pub render_config_json: String,
+    pub chart_info_json: Option<String>,
+}
+
+impl RenderRequestPayload {
+    pub fn validate(&self) -> Result<(), ProtocolError> {
+        if self.schema_version != JSON_SCHEMA_VERSION {
+            return Err(ProtocolError::InvalidPayload("unsupported render request schema"));
+        }
+        if self.chart_path.is_empty() || self.output_path.is_empty() {
+            return Err(ProtocolError::InvalidPayload(
+                "render request paths cannot be empty",
+            ));
+        }
+        if self.render_config_json.is_empty() {
+            return Err(ProtocolError::InvalidPayload("render config cannot be empty"));
+        }
+        Ok(())
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub enum ControlCommand {
+    Pause,
+    Resume,
+    Cancel,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ControlPayload {
+    pub schema_version: u16,
+    pub job_id: u64,
+    pub command: ControlCommand,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum JobEvent {
+    Started,
+    Loading,
+    Mixing,
+    MixingSfx {
+        completed: u64,
+        total: u64,
+    },
+    Rendering {
+        completed: u64,
+        total: u64,
+        fps: f64,
+        estimated_seconds: f64,
+    },
+    Paused,
+    Resumed,
+    Done {
+        duration_seconds: f64,
+    },
+    Canceled,
+    Failed {
+        message: String,
+    },
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct JobEventPayload {
+    pub schema_version: u16,
+    pub job_id: u64,
+    pub event: JobEvent,
+}
+
+pub fn encode_json<T: Serialize>(value: &T) -> Result<Vec<u8>, ProtocolError> {
+    serde_json::to_vec(value).map_err(|error| ProtocolError::Json(error.to_string()))
+}
+
+pub fn decode_json<T: DeserializeOwned>(payload: &[u8]) -> Result<T, ProtocolError> {
+    serde_json::from_slice(payload).map_err(|error| ProtocolError::Json(error.to_string()))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -218,5 +316,44 @@ mod tests {
     fn capability_messages_have_stable_numeric_values() {
         assert_eq!(MessageType::CapabilityProbe as u16, 9);
         assert_eq!(MessageType::CapabilityResult as u16, 10);
+    }
+
+    #[test]
+    fn render_request_round_trip_preserves_schema_and_paths() {
+        let request = RenderRequestPayload {
+            schema_version: JSON_SCHEMA_VERSION,
+            chart_path: "chart.pez".to_owned(),
+            output_path: "output.mp4".to_owned(),
+            resource_roots: ResourceRootsPayload {
+                assets_dir: "assets".to_owned(),
+                fonts_dir: "fonts".to_owned(),
+                resource_pack_dir: "respacks".to_owned(),
+                ffmpeg_path: "ffmpeg".to_owned(),
+                temp_dir: "temp".to_owned(),
+                renderer_host_path: "renderer-host".to_owned(),
+            },
+            render_config_json: "{}".to_owned(),
+            chart_info_json: None,
+        };
+
+        let encoded = encode_json(&request).unwrap();
+        let decoded: RenderRequestPayload = decode_json(&encoded).unwrap();
+        assert_eq!(decoded, request);
+        assert!(decoded.validate().is_ok());
+    }
+
+    #[test]
+    fn job_event_has_explicit_terminal_failure() {
+        let event = JobEventPayload {
+            schema_version: JSON_SCHEMA_VERSION,
+            job_id: 7,
+            event: JobEvent::Failed {
+                message: "not implemented".to_owned(),
+            },
+        };
+
+        let encoded = encode_json(&event).unwrap();
+        let decoded: JobEventPayload = decode_json(&encoded).unwrap();
+        assert_eq!(decoded, event);
     }
 }
