@@ -44,7 +44,7 @@ impl TryFrom<i32> for ChallengeColor {
 #[serde(rename_all = "lowercase")]
 pub enum AudioMixMode {
     Traditional,
-    Optimized,
+    Culling,
     Fft,
 }
 
@@ -54,7 +54,7 @@ impl TryFrom<i32> for AudioMixMode {
     fn try_from(value: i32) -> Result<Self, Self::Error> {
         match value {
             0 => Ok(Self::Traditional),
-            1 => Ok(Self::Optimized),
+            1 => Ok(Self::Culling),
             2 => Ok(Self::Fft),
             _ => Err(ValidationError::InvalidEnum {
                 field: "audio_mix_mode",
@@ -176,7 +176,7 @@ impl Default for RenderConfig {
             force_limit: true,
             limit_threshold: 0.5,
             loudness_equalization: false,
-            audio_mix_mode: AudioMixMode::Optimized,
+            audio_mix_mode: AudioMixMode::Culling,
             watermark: String::new(),
             roman: false,
             chinese: false,
@@ -261,6 +261,7 @@ impl RenderConfig {
             play_end_time: self.play_end_time,
             fade: self.fade,
             alpha_tint: self.alpha_tint,
+            auto_tweak_offset: false,
             ..Default::default()
         }
     }

@@ -320,7 +320,7 @@ fn mix_sfx(
                 }
             }
         }
-        AudioMixMode::Optimized => {
+        AudioMixMode::Culling => {
             let (notes, names) = collect_sfx_notes(chart);
             let mut counts: std::collections::HashMap<(i64, SfxSound), u8> =
                 std::collections::HashMap::new();
