@@ -221,7 +221,7 @@ mod tests {
         let Some(ffmpeg) = ffmpeg else {
             return;
         };
-        let assets = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src-tauri/assets");
+        let assets = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("assets");
         if !assets.exists() {
             return;
         }

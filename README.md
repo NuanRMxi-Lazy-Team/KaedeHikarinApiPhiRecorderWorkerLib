@@ -1,31 +1,27 @@
+# Phi Recorder Native
 
-# Phigros Recorder 介绍
+Phigros 谱面渲染纯 native 库 (RPE / PGR charts to video).
 
-![Phi Recorder Banner](arts/banner.png)
-
-快 简 轻 便  
 Fast Simple Lightweight Convenient
 
-已建 QQ 群: 907416249
+## 架构
 
-文档 / Documentation: [Docs](https://pr.xhsr.org.cn/)
+- `phi-recorder-native` — 唯一公开入口是 C ABI (`include/phi_recorder.h`)，供 Worker 通过 P/Invoke 调用
+- `renderer-core` — 纯逻辑：配置、时间轴、FFmpeg 参数计划、ChartInfo、事件与任务控制
+- `renderer-protocol` — DLL 与私有渲染进程之间的 PHIR 二进制协议
+- `renderer-host` — 私有 headless 渲染进程（macroquad + phire + sasa + ffmpeg），由 DLL 管理，用于进程隔离与强制取消
+- `assets/` — 渲染运行时资源（字体、UI 贴图、`respack/`、`rank/`），由调用方通过 `phi_context_options_t` 显式传入
 
-## Installation 安装
-
-Check [Releases](https://github.com/2278535805/phigros-recorder/releases)
-
-## build 构建
+## 构建
 
 ```bash
-pnpm install
-cargo tauri build
+cargo check --workspace --all-targets
+cargo test --workspace
+cargo build -p phi-renderer-host
 ```
 
 ## 注意事项 / Notice
 
-- 请不要伪造游玩成绩、官方内容等，以免造成不好的影响  
-  Please do not falsify game results, official content, etc. to avoid causing adverse effects
-- 游玩界面与本家有明显区分, 如 COMBO 处文本与 `COMBO` 有明显区分  
-  The game interface is clearly distinguished from the main interface, such as the text at COMBO is clearly distinguished from `COMBO`
+- 请不要伪造游玩成绩、官方内容等，以免造成不好的影响
+- 游玩界面与本家有明显区分, 如 COMBO 处文本与 `COMBO` 有明显区分
 - 不建议向不使用 `Re: PhiEdit` 的玩家分享本软件
-- Sharing this software with players who do not use `Re: PhiEdit` is not recommended

@@ -1,8 +1,8 @@
 # Native Library Foundation
 
-The root Cargo package is the new native-library build target. The existing
-`src-tauri` package is intentionally left untouched during the migration so
-that every step remains independently reversible.
+The root Cargo package is the new native-library build target. The old
+`src-tauri` Tauri application was removed once the pure native library,
+the private renderer host, and the end-to-end render regression were verified.
 
 ## Current boundary
 
@@ -31,15 +31,9 @@ that every step remains independently reversible.
 - The callback and job API will be added only after the renderer-host protocol
   and cancellation lifecycle are verified.
 
-## Migration safety
+## Validation
 
-The old Tauri application remains buildable through:
-
-```text
-cargo check --manifest-path src-tauri/Cargo.toml
-```
-
-The new library is checked independently from the WorkerLib root:
+The library is checked from the WorkerLib root:
 
 ```text
 cargo check

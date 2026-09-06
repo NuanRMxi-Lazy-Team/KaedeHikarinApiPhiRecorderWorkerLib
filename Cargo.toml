@@ -23,7 +23,6 @@ tempfile = "3"
 [workspace]
 resolver = "2"
 members = ["renderer-protocol", "renderer-host"]
-exclude = ["src-tauri"]
 
 [profile.release]
 lto = "thin"

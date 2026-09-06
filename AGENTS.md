@@ -1,85 +1,46 @@
-# AGENTS.md — Phi Recorder
+# AGENTS.md — Phi Recorder Native
 
 ## Project Overview
 
-Tauri 2.x desktop app for recording/rendering Phigros rhythm game charts to video.
-- **Frontend**: Vue 3 + Vuetify + TypeScript + Vite + vue-i18n
-- **Backend**: Rust (Tauri) with `macroquad` for rendering, `phire` for chart parsing, `sasa` for audio
-- **Package manager**: pnpm
-- **Platforms**: Windows, Linux
+Pure native library that renders Phigros rhythm game charts (RPE/PGR) to video.
+
+- **Root crate**: `phi-recorder-native` (cdylib/staticlib/rlib), the only public entry point is the C ABI declared in `include/phi_recorder.h`
+- **renderer-core**: pure logic (config, timeline, ffmpeg plan, chart info, events, job control)
+- **renderer-protocol**: private PHIR binary protocol between the DLL and `renderer-host`
+- **renderer-host**: private helper executable (headless macroquad + phire + sasa + ffmpeg pipe) spawned and managed by the DLL for real force-cancel process isolation
+- **External git deps**: `phire` (chart parser), `macroquad` (OpenGL rendering), `sasa` (audio)
 
 ## Commands
 
 ```bash
-# Install dependencies
-pnpm install
+cargo fmt --check
+cargo check --workspace --all-targets
+cargo test --workspace
+cargo build -p phi-renderer-host   # required before end-to-end tests that spawn the host
 
-# Dev (frontend only, http://localhost:5173)
-pnpm dev
-
-# Dev (full Tauri app)
-cargo tauri dev
-
-# Build (frontend + type-check)
-pnpm build
-
-# Build full desktop app
-cargo tauri build
-
-# Type-check only
-pnpm type-check
-
-# Lint
-pnpm lint
-
-# Format
-pnpm prettier
+# C header smoke test
+gcc -std=c11 -Wall -Wextra -Werror -I include -c tests/c_header_smoke.c -o <temp>/phi_recorder_c_header_smoke.o
 ```
-
-**No test suite exists.** There are no test commands — skip looking for them.
 
 ## Architecture
 
-### Frontend (`src/`)
-- Entry: `src/main.ts` → `src/App.vue`
-- Router: `src/router/index.ts`
-- Views: `AboutView`, `BatchView`, `RenderView`, `RPEView`, `SettingsView`, `TasksView`
-- Shared components: `src/components/` (ConfigView, TipCombobox, TipSlider, TipSwitch, TipTextField, TooltipIcon)
-- i18n: `src/locales/{en,zh-CN}/*.json` — JSON message files, merged in `main.ts`
-- `@` alias maps to `src/` (configured in `vite.config.ts`)
-
-### Backend (`src-tauri/`)
-- Entry: `src/main.rs` → calls `phi_recorder_lib::run()` in `src/lib.rs`
-- Modules: `common`, `ipc`, `preview`, `render`, `task`, `icon`
-- All Tauri IPC commands are registered in `lib.rs` via `generate_handler!`
-- CLI mode: binary accepts `--render`, `--preview`, `--play`, `--tweakoffset` flags for headless operation
-- Config: `src-tauri/config.toml` bundled as resource; runtime config in `common.rs` via `AppConfig`
-- External git deps: `phire` (chart parser), `macroquad` (OpenGL rendering), `sasa` (audio)
-
-### IPC
-- Frontend calls Rust via `@tauri-apps/api` invoke
-- Child process IPC uses JSON on stdout (`ipc.rs`)
+- `src/` — C ABI surface (`abi.rs`, `context.rs`, `job.rs`, `host.rs`, `chart.rs`, `config.rs`, `lib.rs`)
+- `include/phi_recorder.h` — public C header, mirrors the ABI structs
+- `assets/` — runtime assets required by the renderer (fonts, UI textures, `respack/`, `rank/`); the caller passes the assets directory explicitly via `phi_context_options_t`
+- `tests/` — Rust integration tests plus the C layout smoke file
 
 ## Key Conventions
 
-- **Prettier**: single quotes, bracket same line, print width 180 (see `.prettierrc`)
-- **ESLint**: Vue 3 essential + TypeScript (`.eslintrc.cjs`)
-- **TypeScript**: project references — `tsconfig.app.json` (frontend), `tsconfig.node.json` (vite config)
 - **Rust**: edition 2021, min rustc 1.77.2; release profile uses LTO + strip
-- **i18n**: two locales (en, zh-CN). Fallback is `en`. Missing keys with `title-` prefix return empty string.
-- **Custom window**: decorations disabled, custom drag-drop enabled, `useHttpsScheme: true`
-- **File association**: `.pez` files (RPE Chart Bundle)
-
-## CI
-
-- `.github/workflows/debug.yaml`: builds on push to any branch (when src changes), uploads MSI/NSIS/AppImage/deb artifacts
-- `.github/workflows/release.yaml`: builds on `v*` tags, creates draft GitHub release
-- Both use `pnpm/action-setup@v2` (version 8) and `dtolnay/rust-toolchain@stable`
+- All C structs start with `struct_size + abi_version`; strings are UTF-8 `ptr + length`; inputs are deep-copied by the native side immediately
+- One active job per context; a second submit returns `BUSY`
+- Callbacks run on a per-job dispatcher thread; re-entering the native API from a callback is forbidden
+- Never commit `TODO.md`
+- Commits are stepwise with the template `feat: 中文描述`
 
 ## Gotchas
 
-- `beforeBuildCommand` in `tauri.conf.json` runs `pnpm build` (includes type-check), so `cargo tauri build` triggers full frontend build automatically
-- `phi-recorder` in `package.json` dependencies is a self-reference (`"file:"`) — do not remove
-- Rust dev profile has `opt-level = 2` for all dependencies (faster dev builds)
 - The `phire` crate uses a custom macro `tl_file!` for localized error messages
+- phire's filesystem layer needs a Tokio runtime; `renderer-host` enters a current-thread runtime on its render thread (`renderer-host/src/main.rs`)
+- Keep a single macroquad/sasa git source identity across the workspace (same URL form, same rev), otherwise duplicate global symbols break linking
 - Console window is hidden on Windows in non-debug mode via WinAPI
