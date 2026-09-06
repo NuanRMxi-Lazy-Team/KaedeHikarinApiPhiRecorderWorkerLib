@@ -10,6 +10,7 @@ name = "phi-renderer-host"
 path = "src/main.rs"
 
 [dependencies]
+anyhow = "1.0.95"
 macroquad = { git = "https://github.com/2278535805/macroquad", default-features = false }
 phi-recorder-protocol = { path = "../renderer-protocol" }
 phi-recorder-core = { path = "../renderer-core" }

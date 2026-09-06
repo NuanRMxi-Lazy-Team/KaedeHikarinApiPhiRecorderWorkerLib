@@ -2773,6 +2773,7 @@ dependencies = [
 name = "phi-renderer-host"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "macroquad",
  "phi-recorder-core",
  "phi-recorder-protocol",

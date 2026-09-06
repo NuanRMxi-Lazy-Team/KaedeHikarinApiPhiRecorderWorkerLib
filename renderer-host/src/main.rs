@@ -1,8 +1,6 @@
 use std::{
     ffi::CStr,
     io::{self, BufReader, BufWriter},
-    ops::DerefMut,
-    path::PathBuf,
     sync::{
         mpsc::{self, Receiver, Sender},
         Arc, Mutex,
@@ -11,18 +9,14 @@ use std::{
 };
 
 use macroquad::miniquad::gl::glGetString;
-use phi_recorder_core::{ChartInfo, JobControl, RenderConfig, ResourceRoots};
+use phi_recorder_core::JobControl;
 use phi_recorder_protocol::{
     decode_json, decode_protocol_version, encode_error, encode_json, encode_protocol_version,
     read_frame, write_frame, ControlCommand, ControlPayload, Frame, JobEvent, JobEventPayload,
     MessageType, ProtocolError, RenderRequestPayload, JSON_SCHEMA_VERSION, PROTOCOL_VERSION,
 };
-use phire::{
-    core::ResourcePack,
-    fs::{self, FileSystem},
-    scene::GameScene,
-};
-use sasa::AudioClip;
+mod frame;
+use frame::PreparedFrameRenderer;
 
 const GL_VENDOR: u32 = 0x1F00;
 const GL_RENDERER: u32 = 0x1F01;
@@ -297,8 +291,8 @@ fn prepare_resources(request: RenderRequestPayload, control: Arc<JobControl>) ->
 
     macroquad::Window::from_config(config, async move {
         let mut events = vec![JobEvent::Started, JobEvent::Loading];
-        match prepare_resources_in_context(&request, &control).await {
-            Ok((music_seconds, music_sample_rate)) => {
+        match PreparedFrameRenderer::prepare(&request, &control).await {
+            Ok((mut renderer, music_seconds, music_sample_rate)) => {
                 if control.is_cancel_requested() {
                     events.push(JobEvent::Canceled);
                 } else {
@@ -306,16 +300,27 @@ fn prepare_resources(request: RenderRequestPayload, control: Arc<JobControl>) ->
                         music_seconds,
                         music_sample_rate,
                     });
-                    events.push(JobEvent::Failed {
-                        message: "frame renderer is not connected yet".to_owned(),
-                    });
+                    match renderer.render_one_frame(0.0) {
+                        Ok(()) => {
+                            let (width, height) = renderer.output_size();
+                            events.push(JobEvent::FrameReady { width, height });
+                            events.push(JobEvent::Failed {
+                                message: "video encoder is not connected yet".to_owned(),
+                            });
+                        }
+                        Err(error) => events.push(JobEvent::Failed {
+                            message: format!("render first frame: {error:#}"),
+                        }),
+                    }
                 }
             }
             Err(error) => {
                 if control.is_cancel_requested() {
                     events.push(JobEvent::Canceled);
                 } else {
-                    events.push(JobEvent::Failed { message: error });
+                    events.push(JobEvent::Failed {
+                        message: error.to_string(),
+                    });
                 }
             }
         }
@@ -328,71 +333,6 @@ fn prepare_resources(request: RenderRequestPayload, control: Arc<JobControl>) ->
             message: "renderer job did not return a result".to_owned(),
         }]
     })
-}
-
-async fn prepare_resources_in_context(
-    request: &RenderRequestPayload,
-    control: &JobControl,
-) -> Result<(f64, u32), String> {
-    if control.is_cancel_requested() {
-        return Err("render canceled".to_owned());
-    }
-
-    let roots = ResourceRoots {
-        assets_dir: PathBuf::from(&request.resource_roots.assets_dir),
-        fonts_dir: PathBuf::from(&request.resource_roots.fonts_dir),
-        resource_pack_dir: PathBuf::from(&request.resource_roots.resource_pack_dir),
-        ffmpeg_path: PathBuf::from(&request.resource_roots.ffmpeg_path),
-        temp_dir: PathBuf::from(&request.resource_roots.temp_dir),
-        renderer_host_path: PathBuf::from(&request.resource_roots.renderer_host_path),
-    };
-    roots.validate().map_err(|error| error.to_string())?;
-
-    let config: RenderConfig = serde_json::from_str(&request.render_config_json)
-        .map_err(|error| format!("invalid render config: {error}"))?;
-    config.validate().map_err(|error| error.to_string())?;
-    let mut render_config = config.to_phire_config();
-    render_config.mods = phire::config::Mods::AUTOPLAY;
-
-    macroquad::file::set_pc_assets_folder(&roots.assets_dir.to_string_lossy());
-    let mut filesystem: Box<dyn FileSystem + Send + Sync + 'static> =
-        fs::fs_from_file(PathBuf::from(&request.chart_path).as_path())
-            .map_err(|error| format!("open chart: {error:#}"))?;
-    if control.is_cancel_requested() {
-        return Err("render canceled".to_owned());
-    }
-    let info = if let Some(info_json) = &request.chart_info_json {
-        serde_json::from_str::<ChartInfo>(info_json)
-            .map_err(|error| format!("invalid chart info: {error}"))?
-    } else {
-        fs::load_info(filesystem.deref_mut())
-            .await
-            .map_err(|error| format!("load chart info: {error:#}"))?
-            .into()
-    };
-    let info: phire::info::ChartInfo = info.into();
-
-    GameScene::load_chart(filesystem.deref_mut(), &info, &render_config)
-        .await
-        .map_err(|error| format!("load chart resources: {error:#}"))?;
-    if control.is_cancel_requested() {
-        return Err("render canceled".to_owned());
-    }
-    let resource_pack_path = render_config
-        .res_pack_path
-        .as_ref()
-        .map(PathBuf::from)
-        .unwrap_or_else(|| roots.resource_pack_dir.clone());
-    ResourcePack::from_path(Some(&resource_pack_path))
-        .await
-        .map_err(|error| format!("load resource pack: {error:#}"))?;
-
-    let music_data = filesystem
-        .load_file(&info.music)
-        .await
-        .map_err(|error| format!("load music: {error:#}"))?;
-    let music = AudioClip::new(music_data).map_err(|error| format!("decode music: {error:#}"))?;
-    Ok((music.length(), music.sample_rate()))
 }
 
 fn probe_headless_context() -> Result<Vec<u8>, String> {
