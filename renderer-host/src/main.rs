@@ -320,10 +320,23 @@ fn send_event(sender: &Sender<Frame>, job_id: u64, event: JobEvent) -> Result<()
 
 fn prepare_resources(request: RenderRequestPayload, control: Arc<JobControl>) -> Vec<JobEvent> {
     let (sender, receiver) = mpsc::sync_channel(1);
+    let (window_width, window_height) =
+        serde_json::from_str::<serde_json::Value>(&request.render_config_json)
+            .ok()
+            .and_then(|value| {
+                let resolution = value.get("resolution")?;
+                let width = resolution.get("width")?.as_u64()?;
+                let height = resolution.get("height")?.as_u64()?;
+                Some((
+                    ((width.clamp(2, 4096) as u32) & !1) as i32,
+                    ((height.clamp(2, 4096) as u32) & !1) as i32,
+                ))
+            })
+            .unwrap_or((1280, 720));
     let config = macroquad::window::Conf {
         window_title: "Phi Recorder Renderer".to_owned(),
-        window_width: 16,
-        window_height: 16,
+        window_width,
+        window_height,
         window_resizable: false,
         headless: true,
         ..Default::default()
