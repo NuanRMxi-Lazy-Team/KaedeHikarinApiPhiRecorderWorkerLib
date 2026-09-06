@@ -298,41 +298,18 @@ fn prepare_resources(request: RenderRequestPayload, control: Arc<JobControl>) ->
     macroquad::Window::from_config(config, async move {
         let mut events = vec![JobEvent::Started, JobEvent::Loading];
         match PreparedFrameRenderer::prepare(&request, &control).await {
-            Ok((mut renderer, music_seconds, music_sample_rate)) => {
+            Ok((mut renderer, music_seconds, music_sample_rate, video_frames)) => {
                 if control.is_cancel_requested() {
                     events.push(JobEvent::Canceled);
                 } else {
-                    let start = Instant::now();
                     events.push(JobEvent::ResourcesReady {
                         music_seconds,
                         music_sample_rate,
                     });
-                    match renderer.render_one_frame(0.0).and_then(|()| {
-                        let readback = FrameReadback::new(&renderer)?;
-                        let frame = readback.read_frame(&renderer)?;
-                        let (width, height) = renderer.output_size();
-                        let ffmpeg_path = Path::new(&request.resource_roots.ffmpeg_path);
-                        let output_path = Path::new(&request.output_path);
-                        let mut writer = FfmpegWriter::start(
-                            ffmpeg_path,
-                            width,
-                            height,
-                            renderer.fps(),
-                            output_path,
-                        )?;
-                        writer.write_frame(&frame)?;
-                        writer.finish()?;
-                        Ok(())
-                    }) {
-                        Ok(()) => {
-                            let (width, height) = renderer.output_size();
-                            events.push(JobEvent::FrameReady { width, height });
-                            events.push(JobEvent::Done {
-                                duration_seconds: start.elapsed().as_secs_f64(),
-                            });
-                        }
+                    match render_video_frames(&mut renderer, &request, &control, video_frames) {
+                        Ok(render_events) => events.extend(render_events),
                         Err(error) => events.push(JobEvent::Failed {
-                            message: format!("render first frame: {error:#}"),
+                            message: format!("render video: {error:#}"),
                         }),
                     }
                 }
@@ -356,6 +333,61 @@ fn prepare_resources(request: RenderRequestPayload, control: Arc<JobControl>) ->
             message: "renderer job did not return a result".to_owned(),
         }]
     })
+}
+
+fn render_video_frames(
+    renderer: &mut PreparedFrameRenderer,
+    request: &RenderRequestPayload,
+    control: &JobControl,
+    video_frames: u64,
+) -> anyhow::Result<Vec<JobEvent>> {
+    let readback = FrameReadback::new(renderer)?;
+    let (width, height) = renderer.output_size();
+    let ffmpeg_path = Path::new(&request.resource_roots.ffmpeg_path);
+    let output_path = Path::new(&request.output_path);
+    let mut writer = FfmpegWriter::start(
+        ffmpeg_path,
+        width,
+        height,
+        renderer.fps(),
+        output_path,
+    )?;
+    let start = Instant::now();
+    let mut events = Vec::new();
+
+    for frame in 0..video_frames {
+        if control.wait_if_paused().is_err() {
+            return Ok(vec![JobEvent::Canceled]);
+        }
+        if control.is_cancel_requested() {
+            return Ok(vec![JobEvent::Canceled]);
+        }
+
+        let time_seconds = frame as f64 / renderer.fps() as f64;
+        renderer.render_one_frame(time_seconds)?;
+        let frame_data = readback.read_frame(renderer)?;
+        writer.write_frame(&frame_data)?;
+
+        if frame == 0 {
+            events.push(JobEvent::FrameReady { width, height });
+        }
+        if frame == video_frames - 1 || frame % (renderer.fps() as u64).max(1) == 0 {
+            events.push(JobEvent::Rendering {
+                completed: frame + 1,
+                total: video_frames,
+                fps: (frame + 1) as f64 / start.elapsed().as_secs_f64().max(0.001),
+                estimated_seconds: (video_frames - frame - 1) as f64
+                    * start.elapsed().as_secs_f64().max(0.001)
+                    / (frame + 1) as f64,
+            });
+        }
+    }
+
+    writer.finish()?;
+    events.push(JobEvent::Done {
+        duration_seconds: start.elapsed().as_secs_f64(),
+    });
+    Ok(events)
 }
 
 fn probe_headless_context() -> Result<Vec<u8>, String> {

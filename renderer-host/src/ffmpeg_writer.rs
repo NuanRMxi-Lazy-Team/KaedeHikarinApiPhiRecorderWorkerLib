@@ -25,7 +25,7 @@ impl FfmpegWriter {
         let mut command = Command::new(ffmpeg_path);
         command
             .args(args)
-            .args(["-frames:v", "1", "-an", "-c:v", "libx264", "-preset", "ultrafast"])
+            .args(["-an", "-c:v", "libx264", "-preset", "ultrafast"])
             .args(["-y", "-loglevel", "error"])
             .arg(output_path)
             .stdin(Stdio::piped())

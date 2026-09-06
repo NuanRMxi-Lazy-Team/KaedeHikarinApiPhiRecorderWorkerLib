@@ -10,7 +10,9 @@ use phire::{
     ui::{FontArc, TextPainter},
 };
 
-use phi_recorder_core::{ChartInfo, JobControl, RenderConfig, ResourceRoots};
+use phi_recorder_core::{
+    calculate_timeline, ChartInfo, JobControl, RenderConfig, ResourceRoots, TimingConstants,
+};
 use phi_recorder_protocol::RenderRequestPayload;
 
 pub struct PreparedFrameRenderer {
@@ -28,7 +30,7 @@ impl PreparedFrameRenderer {
     pub async fn prepare(
         request: &RenderRequestPayload,
         control: &JobControl,
-    ) -> Result<(Self, f64, u32)> {
+    ) -> Result<(Self, f64, u32, u64)> {
         if control.is_cancel_requested() {
             anyhow::bail!("render canceled");
         }
@@ -77,6 +79,14 @@ impl PreparedFrameRenderer {
         let music = sasa::AudioClip::new(music_data).context("decode music")?;
         let music_length = music.length();
         let music_sample_rate = music.sample_rate();
+        let timeline = calculate_timeline(
+            &config,
+            chart.offset,
+            info.offset,
+            music_length,
+            TimingConstants::phire_defaults(),
+        )
+        .map_err(|error| anyhow::anyhow!(error))?;
 
         let fonts = vec![FontArc::try_from_vec(macroquad::file::load_file("font.ttf").await?)?];
         let painter = TextPainter::new(fonts);
@@ -146,6 +156,7 @@ impl PreparedFrameRenderer {
             },
             music_length,
             music_sample_rate,
+            timeline.video_frames,
         ))
     }
 
