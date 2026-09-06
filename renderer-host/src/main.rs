@@ -17,6 +17,8 @@ use phi_recorder_protocol::{
 };
 mod frame;
 use frame::PreparedFrameRenderer;
+mod readback;
+use readback::FrameReadback;
 
 const GL_VENDOR: u32 = 0x1F00;
 const GL_RENDERER: u32 = 0x1F01;
@@ -300,7 +302,10 @@ fn prepare_resources(request: RenderRequestPayload, control: Arc<JobControl>) ->
                         music_seconds,
                         music_sample_rate,
                     });
-                    match renderer.render_one_frame(0.0) {
+                    match renderer.render_one_frame(0.0).and_then(|()| {
+                        let readback = FrameReadback::new(&renderer)?;
+                        readback.read_frame(&renderer).map(|_| ())
+                    }) {
                         Ok(()) => {
                             let (width, height) = renderer.output_size();
                             events.push(JobEvent::FrameReady { width, height });

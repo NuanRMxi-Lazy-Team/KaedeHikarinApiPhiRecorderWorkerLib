@@ -78,7 +78,7 @@ impl PreparedFrameRenderer {
         let music_sample_rate = music.sample_rate();
 
         let fonts = vec![FontArc::try_from_vec(macroquad::file::load_file("font.ttf").await?)?];
-        let mut painter = TextPainter::new(fonts);
+        let painter = TextPainter::new(fonts);
         let player = BasicPlayer {
             avatar: None,
             id: 0,
@@ -132,8 +132,6 @@ impl PreparedFrameRenderer {
             },
         )
         .await?;
-        let _ = &mut painter;
-
         Ok((
             Self {
                 main,
@@ -160,6 +158,10 @@ impl PreparedFrameRenderer {
 
     pub fn output_size(&self) -> (u32, u32) {
         (self.width, self.height)
+    }
+
+    pub fn output_texture(&self) -> Texture2D {
+        self.target.output().texture
     }
 
 }
