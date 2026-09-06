@@ -256,7 +256,7 @@ fn render_loop(
                 request,
                 control,
             } => {
-                let events = prepare_resources(request, control);
+                let events = prepare_resources(request, control, job_id, output.clone());
                 for event in events {
                     let terminal = matches!(
                         event,
@@ -318,7 +318,12 @@ fn send_event(sender: &Sender<Frame>, job_id: u64, event: JobEvent) -> Result<()
     )
 }
 
-fn prepare_resources(request: RenderRequestPayload, control: Arc<JobControl>) -> Vec<JobEvent> {
+fn prepare_resources(
+    request: RenderRequestPayload,
+    control: Arc<JobControl>,
+    job_id: u64,
+    output: Sender<Frame>,
+) -> Vec<JobEvent> {
     let (sender, receiver) = mpsc::sync_channel(1);
     let (window_width, window_height) =
         serde_json::from_str::<serde_json::Value>(&request.render_config_json)
@@ -343,19 +348,31 @@ fn prepare_resources(request: RenderRequestPayload, control: Arc<JobControl>) ->
     };
 
     macroquad::Window::from_config(config, async move {
-        let mut events = vec![JobEvent::Started, JobEvent::Loading];
-        match PreparedFrameRenderer::prepare(&request, &control).await {
+        let _ = send_event(&output, job_id, JobEvent::Started);
+        let _ = send_event(&output, job_id, JobEvent::Loading);
+        let terminal = match PreparedFrameRenderer::prepare(&request, &control).await {
             Ok((mut renderer, music_seconds, music_sample_rate, video_frames)) => {
                 if control.is_cancel_requested() {
-                    events.push(JobEvent::Canceled);
+                    Some(JobEvent::Canceled)
                 } else {
-                    events.push(JobEvent::ResourcesReady {
-                        music_seconds,
-                        music_sample_rate,
-                    });
-                    match render_video_frames(&mut renderer, &request, &control, video_frames) {
-                        Ok(render_events) => events.extend(render_events),
-                        Err(error) => events.push(JobEvent::Failed {
+                    let _ = send_event(
+                        &output,
+                        job_id,
+                        JobEvent::ResourcesReady {
+                            music_seconds,
+                            music_sample_rate,
+                        },
+                    );
+                    match render_video_frames(
+                        &mut renderer,
+                        &request,
+                        &control,
+                        video_frames,
+                        job_id,
+                        &output,
+                    ) {
+                        Ok(event) => event,
+                        Err(error) => Some(JobEvent::Failed {
                             message: format!("render video: {error:#}"),
                         }),
                     }
@@ -363,15 +380,17 @@ fn prepare_resources(request: RenderRequestPayload, control: Arc<JobControl>) ->
             }
             Err(error) => {
                 if control.is_cancel_requested() {
-                    events.push(JobEvent::Canceled);
+                    Some(JobEvent::Canceled)
                 } else {
-                    events.push(JobEvent::Failed {
+                    Some(JobEvent::Failed {
                         message: format!("{error:#}"),
-                    });
+                    })
                 }
             }
+        };
+        if let Some(event) = terminal {
+            let _ = sender.send(vec![event]);
         }
-        let _ = sender.send(events);
         macroquad::window::miniquad::window::quit();
     });
 
@@ -387,7 +406,9 @@ fn render_video_frames(
     request: &RenderRequestPayload,
     control: &JobControl,
     video_frames: u64,
-) -> anyhow::Result<Vec<JobEvent>> {
+    job_id: u64,
+    output: &Sender<Frame>,
+) -> anyhow::Result<Option<JobEvent>> {
     let readback = FrameReadback::new(renderer)?;
     let (width, height) = renderer.output_size();
     let ffmpeg_path = Path::new(&request.resource_roots.ffmpeg_path);
@@ -402,14 +423,13 @@ fn render_video_frames(
         output_path,
     )?;
     let start = Instant::now();
-    let mut events = Vec::new();
 
     for frame in 0..video_frames {
         if control.wait_if_paused().is_err() {
-            return Ok(vec![JobEvent::Canceled]);
+            return Ok(Some(JobEvent::Canceled));
         }
         if control.is_cancel_requested() {
-            return Ok(vec![JobEvent::Canceled]);
+            return Ok(Some(JobEvent::Canceled));
         }
 
         let time_seconds = frame as f64 / renderer.fps() as f64;
@@ -418,25 +438,28 @@ fn render_video_frames(
         writer.write_frame(&frame_data)?;
 
         if frame == 0 {
-            events.push(JobEvent::FrameReady { width, height });
+            let _ = send_event(output, job_id, JobEvent::FrameReady { width, height });
         }
         if frame == video_frames - 1 || frame % (renderer.fps() as u64).max(1) == 0 {
-            events.push(JobEvent::Rendering {
-                completed: frame + 1,
-                total: video_frames,
-                fps: (frame + 1) as f64 / start.elapsed().as_secs_f64().max(0.001),
-                estimated_seconds: (video_frames - frame - 1) as f64
-                    * start.elapsed().as_secs_f64().max(0.001)
-                    / (frame + 1) as f64,
-            });
+            let _ = send_event(
+                output,
+                job_id,
+                JobEvent::Rendering {
+                    completed: frame + 1,
+                    total: video_frames,
+                    fps: (frame + 1) as f64 / start.elapsed().as_secs_f64().max(0.001),
+                    estimated_seconds: (video_frames - frame - 1) as f64
+                        * start.elapsed().as_secs_f64().max(0.001)
+                        / (frame + 1) as f64,
+                },
+            );
         }
     }
 
     writer.finish()?;
-    events.push(JobEvent::Done {
+    Ok(Some(JobEvent::Done {
         duration_seconds: start.elapsed().as_secs_f64(),
-    });
-    Ok(events)
+    }))
 }
 
 fn probe_headless_context() -> Result<Vec<u8>, String> {
