@@ -15,12 +15,14 @@ use phi_recorder_core::{
 };
 use phi_recorder_protocol::RenderRequestPayload;
 
+use crate::{audio::AudioPlan, ffmpeg_writer::AudioInput};
+
 pub struct PreparedFrameRenderer {
     main: Main,
     target: Rc<MSRenderTarget>,
     time: Rc<RefCell<f64>>,
     painter: TextPainter,
-    _resource_pack: ResourcePack,
+    audio_plan: AudioPlan,
     width: u32,
     height: u32,
     fps: u32,
@@ -87,6 +89,14 @@ impl PreparedFrameRenderer {
             TimingConstants::phire_defaults(),
         )
         .map_err(|error| anyhow::anyhow!(error))?;
+        let audio_plan = crate::audio::build_audio_plan(
+            &config,
+            &chart,
+            &music,
+            &resource_pack,
+            &timeline,
+            &roots.temp_dir,
+        )?;
 
         let fonts = vec![FontArc::try_from_vec(macroquad::file::load_file("font.ttf").await?)?];
         let painter = TextPainter::new(fonts);
@@ -149,7 +159,7 @@ impl PreparedFrameRenderer {
                 target,
                 time,
                 painter,
-                _resource_pack: resource_pack,
+                audio_plan,
                 width: config.resolution.width,
                 height: config.resolution.height,
                 fps: config.fps,
@@ -179,6 +189,14 @@ impl PreparedFrameRenderer {
 
     pub fn output_texture(&self) -> Texture2D {
         self.target.output().texture
+    }
+
+    pub fn audio_inputs(&self) -> &[AudioInput] {
+        self.audio_plan.inputs()
+    }
+
+    pub fn output_args(&self) -> &[String] {
+        self.audio_plan.output_args()
     }
 
 }

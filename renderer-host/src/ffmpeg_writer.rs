@@ -13,19 +13,35 @@ pub struct FfmpegWriter {
     output_path: PathBuf,
 }
 
+#[derive(Debug, Clone)]
+pub struct AudioInput {
+    pub path: PathBuf,
+    pub sample_rate: u32,
+}
+
 impl FfmpegWriter {
     pub fn start(
         ffmpeg_path: &Path,
         width: u32,
         height: u32,
         fps: u32,
+        audio_inputs: &[AudioInput],
+        output_args: &[String],
         output_path: &Path,
     ) -> Result<Self> {
         let args = build_video_input_args(width, height, fps, "libx264", "");
         let mut command = Command::new(ffmpeg_path);
+        command.args(args);
+        for input in audio_inputs {
+            command
+                .args(["-f", "f32le", "-ar"])
+                .arg(input.sample_rate.to_string())
+                .args(["-ac", "2", "-i"])
+                .arg(&input.path);
+        }
         command
-            .args(args)
-            .args(["-an", "-c:v", "libx264", "-preset", "ultrafast"])
+            .args(["-c:v", "libx264", "-preset", "ultrafast"])
+            .args(output_args)
             .args(["-y", "-loglevel", "error"])
             .arg(output_path)
             .stdin(Stdio::piped())
@@ -90,7 +106,7 @@ mod tests {
 
         let temp = tempfile::tempdir().unwrap();
         let output = temp.path().join("one-frame.mp4");
-        let mut writer = FfmpegWriter::start(&ffmpeg, 16, 16, 60, &output).unwrap();
+        let mut writer = FfmpegWriter::start(&ffmpeg, 16, 16, 60, &[], &[], &output).unwrap();
         writer.write_frame(&vec![16u8; 16 * 16 * 3 / 2]).unwrap();
         let output_path = writer.finish().unwrap();
 
