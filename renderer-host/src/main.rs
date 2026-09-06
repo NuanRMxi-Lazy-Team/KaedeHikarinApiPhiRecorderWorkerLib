@@ -351,44 +351,49 @@ fn prepare_resources(
     macroquad::Window::from_config(config, async move {
         let _ = send_event(&output, job_id, JobEvent::Started);
         let _ = send_event(&output, job_id, JobEvent::Loading);
-        let terminal = match PreparedFrameRenderer::prepare(&request, &control).await {
-            Ok((mut renderer, music_seconds, music_sample_rate, video_frames)) => {
-                if control.is_cancel_requested() {
-                    Some(JobEvent::Canceled)
-                } else {
-                    let _ = send_event(
-                        &output,
-                        job_id,
-                        JobEvent::ResourcesReady {
-                            music_seconds,
-                            music_sample_rate,
-                        },
-                    );
-                    match render_video_frames(
-                        &mut renderer,
-                        &request,
-                        &control,
-                        video_frames,
-                        job_id,
-                        &output,
-                    ) {
-                        Ok(event) => event,
-                        Err(error) => Some(JobEvent::Failed {
-                            message: format!("render video: {error:#}"),
-                        }),
+        let terminal =
+            if let Some(message) = msaa_software_renderer_failure(&request.render_config_json) {
+                Some(JobEvent::Failed { message })
+            } else {
+                match PreparedFrameRenderer::prepare(&request, &control).await {
+                    Ok((mut renderer, music_seconds, music_sample_rate, video_frames)) => {
+                        if control.is_cancel_requested() {
+                            Some(JobEvent::Canceled)
+                        } else {
+                            let _ = send_event(
+                                &output,
+                                job_id,
+                                JobEvent::ResourcesReady {
+                                    music_seconds,
+                                    music_sample_rate,
+                                },
+                            );
+                            match render_video_frames(
+                                &mut renderer,
+                                &request,
+                                &control,
+                                video_frames,
+                                job_id,
+                                &output,
+                            ) {
+                                Ok(event) => event,
+                                Err(error) => Some(JobEvent::Failed {
+                                    message: format!("render video: {error:#}"),
+                                }),
+                            }
+                        }
+                    }
+                    Err(error) => {
+                        if control.is_cancel_requested() {
+                            Some(JobEvent::Canceled)
+                        } else {
+                            Some(JobEvent::Failed {
+                                message: format!("{error:#}"),
+                            })
+                        }
                     }
                 }
-            }
-            Err(error) => {
-                if control.is_cancel_requested() {
-                    Some(JobEvent::Canceled)
-                } else {
-                    Some(JobEvent::Failed {
-                        message: format!("{error:#}"),
-                    })
-                }
-            }
-        };
+            };
         if let Some(event) = terminal {
             let _ = sender.send(vec![event]);
         }
@@ -400,6 +405,36 @@ fn prepare_resources(
             message: "renderer job did not return a result".to_owned(),
         }]
     })
+}
+
+fn msaa_software_renderer_failure(render_config_json: &str) -> Option<String> {
+    let sample_count = serde_json::from_str::<serde_json::Value>(render_config_json)
+        .ok()
+        .and_then(|value| value.get("sampleCount").and_then(serde_json::Value::as_u64))
+        .unwrap_or(8);
+    if sample_count <= 1 {
+        return None;
+    }
+
+    let renderer_name = unsafe { read_gl_string(GL_RENDERER) }
+        .unwrap_or_else(|| "unknown OpenGL renderer".to_owned());
+    let renderer_lower = renderer_name.to_ascii_lowercase();
+    let software = [
+        "llvmpipe",
+        "softpipe",
+        "swrast",
+        "software rasterizer",
+        "swiftshader",
+    ]
+    .iter()
+    .any(|marker| renderer_lower.contains(marker));
+    if software {
+        return Some(format!(
+            "MSAA cannot be enabled without a hardware OpenGL context: requested sampleCount={sample_count}, detected renderer={renderer_name}; use sampleCount=1 or deploy with hardware OpenGL"
+        ));
+    }
+
+    None
 }
 
 fn render_video_frames(
