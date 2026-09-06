@@ -19,6 +19,12 @@ _Static_assert(
 _Static_assert(
     offsetof(phi_chart_info_view_t, tags) > offsetof(phi_chart_info_view_t, tip),
     "chart info tags field order changed");
+_Static_assert(
+    offsetof(phi_render_request_t, config) > offsetof(phi_render_request_t, output_path),
+    "render request field order changed");
+_Static_assert(
+    offsetof(phi_job_snapshot_t, state) > offsetof(phi_job_snapshot_t, job_id),
+    "job snapshot field order changed");
 
 int main(void) {
     phi_context_options_t options = {0};

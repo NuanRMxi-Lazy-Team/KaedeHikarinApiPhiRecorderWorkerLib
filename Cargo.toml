@@ -10,8 +10,12 @@ name = "phi_recorder"
 crate-type = ["cdylib", "staticlib", "rlib"]
 
 [dependencies]
+anyhow = "1.0.95"
 chrono = "0.4.28"
 phi-recorder-core = { path = "renderer-core" }
+phi-recorder-protocol = { path = "renderer-protocol" }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0.138"
 
 [workspace]
 resolver = "2"

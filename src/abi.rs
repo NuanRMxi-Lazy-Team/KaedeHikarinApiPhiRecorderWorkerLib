@@ -129,6 +129,61 @@ pub struct phi_chart_info_view_t {
 }
 
 #[repr(C)]
+pub struct phi_render_request_t {
+    pub struct_size: u32,
+    pub abi_version: u32,
+    pub chart_path: phi_string_view_t,
+    pub output_path: phi_string_view_t,
+    pub config: *const phi_render_config_t,
+    pub chart_info: *const crate::chart::phi_chart_info,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum phi_job_state_t {
+    Pending = 0,
+    Loading = 1,
+    Mixing = 2,
+    Rendering = 3,
+    Paused = 4,
+    Done = 5,
+    Canceled = 6,
+    Failed = 7,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct phi_job_snapshot_t {
+    pub struct_size: u32,
+    pub abi_version: u32,
+    pub job_id: u64,
+    pub state: phi_job_state_t,
+    pub progress: f64,
+    pub fps: f64,
+    pub estimated_seconds: f64,
+    pub duration_seconds: f64,
+    pub frame: u64,
+    pub total_frames: u64,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct phi_job_event_t {
+    pub struct_size: u32,
+    pub abi_version: u32,
+    pub job_id: u64,
+    pub state: phi_job_state_t,
+    pub progress: f64,
+    pub fps: f64,
+    pub estimated_seconds: f64,
+    pub duration_seconds: f64,
+    pub message: phi_string_view_t,
+}
+
+pub type phi_job_callback_fn =
+    unsafe extern "C" fn(event: *const phi_job_event_t, user_data: *mut std::ffi::c_void);
+
+#[repr(C)]
 pub struct phi_render_config_t {
     pub struct_size: u32,
     pub abi_version: u32,

@@ -15,6 +15,7 @@ use phi_recorder_core::ResourceRoots;
 pub struct phi_context {
     resource_roots: ResourceRoots,
     last_error: Mutex<String>,
+    pub(crate) active_job: Mutex<Option<*mut crate::job::phi_job>>,
 }
 
 unsafe fn resource_roots_from_ffi(
@@ -41,6 +42,10 @@ impl phi_context {
         if let Ok(mut error) = self.last_error.lock() {
             *error = message.into();
         }
+    }
+
+    pub(crate) fn resource_roots(&self) -> &ResourceRoots {
+        &self.resource_roots
     }
 }
 
@@ -73,6 +78,7 @@ pub unsafe extern "C" fn phi_context_create(
         let context = Box::new(phi_context {
             resource_roots,
             last_error: Mutex::new(String::new()),
+            active_job: Mutex::new(None),
         });
         *out_context = Box::into_raw(context);
         PHI_STATUS_OK

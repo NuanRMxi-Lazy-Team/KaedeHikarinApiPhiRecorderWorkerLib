@@ -243,6 +243,86 @@ PHI_API phi_status_t PHI_CALL phi_chart_info_set_view(
     phi_chart_info_t* info,
     const phi_chart_info_view_t* view);
 
+typedef struct phi_job phi_job_t;
+
+typedef struct phi_render_request {
+    uint32_t struct_size;
+    uint32_t abi_version;
+    phi_string_view_t chart_path;
+    phi_string_view_t output_path;
+    const phi_render_config_t* config;
+    const phi_chart_info_t* chart_info;
+} phi_render_request_t;
+
+typedef enum phi_job_state {
+    PHI_JOB_PENDING = 0,
+    PHI_JOB_LOADING = 1,
+    PHI_JOB_MIXING = 2,
+    PHI_JOB_RENDERING = 3,
+    PHI_JOB_PAUSED = 4,
+    PHI_JOB_DONE = 5,
+    PHI_JOB_CANCELED = 6,
+    PHI_JOB_FAILED = 7
+} phi_job_state_t;
+
+typedef struct phi_job_snapshot {
+    uint32_t struct_size;
+    uint32_t abi_version;
+    uint64_t job_id;
+    phi_job_state_t state;
+    double progress;
+    double fps;
+    double estimated_seconds;
+    double duration_seconds;
+    uint64_t frame;
+    uint64_t total_frames;
+} phi_job_snapshot_t;
+
+typedef struct phi_job_event {
+    uint32_t struct_size;
+    uint32_t abi_version;
+    uint64_t job_id;
+    phi_job_state_t state;
+    double progress;
+    double fps;
+    double estimated_seconds;
+    double duration_seconds;
+    phi_string_view_t message;
+} phi_job_event_t;
+
+typedef void(PHI_CALL* phi_job_callback_fn)(
+    const phi_job_event_t* event,
+    void* user_data);
+
+/*
+ * Submits a render job to the private renderer host. The context allows one
+ * active job at a time; a second submit returns PHI_STATUS_BUSY.
+ * The optional callback is invoked from a dedicated dispatcher thread and must
+ * not call back into this library. user_data stays alive until job_destroy.
+ */
+PHI_API phi_status_t PHI_CALL phi_render_submit(
+    phi_context_t* context,
+    const phi_render_request_t* request,
+    phi_job_callback_fn callback,
+    void* user_data,
+    phi_job_t** out_job);
+
+PHI_API phi_status_t PHI_CALL phi_job_get_snapshot(
+    const phi_job_t* job,
+    phi_job_snapshot_t* out_snapshot);
+
+PHI_API phi_status_t PHI_CALL phi_job_cancel(phi_job_t* job);
+
+PHI_API phi_status_t PHI_CALL phi_job_pause(phi_job_t* job);
+
+PHI_API phi_status_t PHI_CALL phi_job_resume(phi_job_t* job);
+
+/*
+ * Cancels the job, force-terminates the private host when needed, waits for
+ * the dispatcher thread and then releases the job handle.
+ */
+PHI_API void PHI_CALL phi_job_destroy(phi_job_t* job);
+
 #ifdef __cplusplus
 }
 #endif

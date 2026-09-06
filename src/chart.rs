@@ -26,6 +26,12 @@ pub struct phi_chart_info {
     view: ChartInfoViewStorage,
 }
 
+impl phi_chart_info {
+    pub(crate) fn info(&self) -> &ChartInfo {
+        &self.info
+    }
+}
+
 struct ChartInfoViewStorage {
     created: Option<String>,
     updated: Option<String>,
