@@ -12,9 +12,11 @@ path = "src/main.rs"
 [dependencies]
 anyhow = "1.0.95"
 macroquad = { git = "https://github.com/2278535805/macroquad", default-features = false }
+num-complex = "0.4.6"
 phi-recorder-protocol = { path = "../renderer-protocol" }
 phi-recorder-core = { path = "../renderer-core" }
 phire = { git = "https://github.com/2278535805/phire", rev = "2cd1277e468e9c7eb0e2eb5e2b9295ce4a5cba79", package = "phire", default-features = false, features = ["log", "video"] }
+realfft = { version = "3.5.0", features = ["avx", "sse"] }
 sasa = { git = "https://github.com/2278535805/sasa", rev = "3f229a822c71c2391dbfc1a254dacaa0bb67d11e", default-features = false, features = ["cpal"] }
 serde_json = "1.0.138"
 tempfile = "3.16.0"
