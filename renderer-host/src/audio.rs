@@ -34,6 +34,8 @@ pub fn build_audio_plan(
     resource_pack: &ResourcePack,
     timeline: &RenderTimeline,
     temp_dir: &Path,
+    encoder: &str,
+    bitrate_control: &str,
 ) -> Result<AudioPlan> {
     std::fs::create_dir_all(temp_dir)
         .with_context(|| format!("create temp dir {}", temp_dir.display()))?;
@@ -107,13 +109,8 @@ pub fn build_audio_plan(
         layout.ending_delay_millis,
         config.hires,
     );
-    let bitrate_control = if config.dynamic_bitrate_control {
-        "-crf"
-    } else {
-        "-b:v"
-    };
     let output_args = build_output_args(
-        "libx264",
+        encoder,
         bitrate_control,
         &config.bitrate,
         &filter.filter_complex,

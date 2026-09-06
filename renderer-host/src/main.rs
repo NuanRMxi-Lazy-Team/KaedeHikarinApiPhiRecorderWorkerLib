@@ -22,6 +22,7 @@ use frame::PreparedFrameRenderer;
 mod ffmpeg_writer;
 use ffmpeg_writer::FfmpegWriter;
 mod audio;
+mod encoder;
 mod readback;
 use readback::FrameReadback;
 
@@ -413,14 +414,19 @@ fn render_video_frames(
     let (width, height) = renderer.output_size();
     let ffmpeg_path = Path::new(&request.resource_roots.ffmpeg_path);
     let output_path = Path::new(&request.output_path);
+    let encoder_plan = renderer.encoder_plan();
     let mut writer = FfmpegWriter::start(
         ffmpeg_path,
         width,
         height,
         renderer.fps(),
+        &encoder_plan.encoder,
+        encoder_plan.hardware_encoder_hint(),
         renderer.audio_inputs(),
         renderer.output_args(),
         output_path,
+        &encoder_plan.device_args,
+        encoder_plan.output_video_filter.as_deref(),
     )?;
     let start = Instant::now();
 

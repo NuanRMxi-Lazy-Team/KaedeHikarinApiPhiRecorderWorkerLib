@@ -16,7 +16,7 @@ use phi_recorder_core::{
 };
 use phi_recorder_protocol::RenderRequestPayload;
 
-use crate::{audio::AudioPlan, ffmpeg_writer::AudioInput};
+use crate::{audio::AudioPlan, encoder::VideoEncoderPlan, ffmpeg_writer::AudioInput};
 
 /// Wraps the chart filesystem so that an empty `extra.json`/`extra1.json` is
 /// treated as missing: RPE 1.7.0 exports a zero-byte extra file when the chart
@@ -56,6 +56,7 @@ pub struct PreparedFrameRenderer {
     time: Rc<RefCell<f64>>,
     painter: TextPainter,
     audio_plan: AudioPlan,
+    encoder_plan: VideoEncoderPlan,
     width: u32,
     height: u32,
     fps: u32,
@@ -123,6 +124,7 @@ impl PreparedFrameRenderer {
             TimingConstants::phire_defaults(),
         )
         .map_err(|error| anyhow::anyhow!(error))?;
+        let encoder_plan = crate::encoder::plan_video_encoder(&roots.ffmpeg_path, &config);
         let audio_plan = crate::audio::build_audio_plan(
             &config,
             &chart,
@@ -130,6 +132,8 @@ impl PreparedFrameRenderer {
             &resource_pack,
             &timeline,
             &roots.temp_dir,
+            &encoder_plan.encoder,
+            encoder_plan.bitrate_control,
         )?;
 
         let fonts = vec![FontArc::try_from_vec(
@@ -198,6 +202,7 @@ impl PreparedFrameRenderer {
                 time,
                 painter,
                 audio_plan,
+                encoder_plan,
                 width: config.resolution.width,
                 height: config.resolution.height,
                 fps: config.fps,
@@ -235,5 +240,9 @@ impl PreparedFrameRenderer {
 
     pub fn output_args(&self) -> &[String] {
         self.audio_plan.output_args()
+    }
+
+    pub fn encoder_plan(&self) -> &VideoEncoderPlan {
+        &self.encoder_plan
     }
 }

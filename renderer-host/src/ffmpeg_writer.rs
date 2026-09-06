@@ -25,12 +25,17 @@ impl FfmpegWriter {
         width: u32,
         height: u32,
         fps: u32,
+        encoder: &str,
+        hardware_encoder: &str,
         audio_inputs: &[AudioInput],
         output_args: &[String],
         output_path: &Path,
+        device_args: &[String],
+        output_video_filter: Option<&str>,
     ) -> Result<Self> {
-        let args = build_video_input_args(width, height, fps, "libx264", "");
+        let args = build_video_input_args(width, height, fps, encoder, hardware_encoder);
         let mut command = Command::new(ffmpeg_path);
+        command.args(device_args);
         command.args(args);
         for input in audio_inputs {
             command
@@ -39,9 +44,15 @@ impl FfmpegWriter {
                 .args(["-ac", "2", "-i"])
                 .arg(&input.path);
         }
+        command.args(["-c:v", encoder]);
+        if encoder == "libx264" || encoder == "libx265" {
+            command.args(["-preset", "ultrafast"]);
+        }
+        command.args(output_args);
+        if let Some(filter) = output_video_filter {
+            command.args(["-vf", filter]);
+        }
         command
-            .args(["-c:v", "libx264", "-preset", "ultrafast"])
-            .args(output_args)
             .args(["-y", "-loglevel", "error"])
             .arg(output_path)
             .stdin(Stdio::piped())
@@ -106,7 +117,20 @@ mod tests {
 
         let temp = tempfile::tempdir().unwrap();
         let output = temp.path().join("one-frame.mp4");
-        let mut writer = FfmpegWriter::start(&ffmpeg, 16, 16, 60, &[], &[], &output).unwrap();
+        let mut writer = FfmpegWriter::start(
+            &ffmpeg,
+            16,
+            16,
+            60,
+            "libx264",
+            "",
+            &[],
+            &[],
+            &output,
+            &[],
+            None,
+        )
+        .unwrap();
         writer.write_frame(&vec![16u8; 16 * 16 * 3 / 2]).unwrap();
         let output_path = writer.finish().unwrap();
 
