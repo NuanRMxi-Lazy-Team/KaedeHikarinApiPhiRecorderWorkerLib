@@ -1,5 +1,3 @@
-use std::ffi::CStr;
-
 use anyhow::{Context, Result};
 use macroquad::{
     miniquad::gl::{self, GLuint},
@@ -74,21 +72,13 @@ void main() {
 }
 "#;
 
-enum ReadbackMode {
-    Cpu,
-    Gpu {
-        target: RenderTarget,
-        material: Material,
-        pbo: GLuint,
-    },
-}
-
 pub struct FrameReadback {
     width: u32,
-    height: u32,
     yuv_height: u32,
+    target: RenderTarget,
+    material: Material,
+    pbo: GLuint,
     output_byte_size: usize,
-    mode: ReadbackMode,
 }
 
 impl FrameReadback {
@@ -99,22 +89,6 @@ impl FrameReadback {
         }
         let yuv_height = (height * 3).div_ceil(8);
         let output_byte_size = (width * height * 3 / 2) as usize;
-
-        if let Some(renderer_name) =
-            software_renderer_name().filter(|name| is_software_renderer(name))
-        {
-            eprintln!(
-                "renderer-host: software GL renderer detected ({renderer_name}), using CPU YUV readback"
-            );
-            return Ok(Self {
-                width,
-                height,
-                yuv_height,
-                output_byte_size,
-                mode: ReadbackMode::Cpu,
-            });
-        }
-
         let packed_byte_size = (width * yuv_height * 4) as usize;
         let target = render_target(width, yuv_height);
         let material = load_material(
@@ -152,173 +126,63 @@ impl FrameReadback {
 
         Ok(Self {
             width,
-            height,
             yuv_height,
+            target,
+            material,
+            pbo,
             output_byte_size,
-            mode: ReadbackMode::Gpu {
-                target,
-                material,
-                pbo,
-            },
         })
     }
 
     pub fn read_frame(&self, renderer: &PreparedFrameRenderer) -> Result<Vec<u8>> {
-        match &self.mode {
-            ReadbackMode::Cpu => {
-                rgb_texture_to_yuv420(&renderer.output_texture(), self.width, self.height)
-            }
-            ReadbackMode::Gpu {
-                target,
-                material,
-                pbo,
-            } => {
-                set_camera(&Camera2D {
-                    zoom: vec2(1., 1.),
-                    render_target: Some(target.clone()),
-                    ..Default::default()
-                });
-                material.set_texture("screenTexture", renderer.output_texture());
-                gl_use_material(material);
-                draw_rectangle(-1., -1., 2., 2., WHITE);
-                gl_use_default_material();
-                unsafe { get_internal_gl().flush() };
+        set_camera(&Camera2D {
+            zoom: vec2(1., 1.),
+            render_target: Some(self.target.clone()),
+            ..Default::default()
+        });
+        self.material
+            .set_texture("screenTexture", renderer.output_texture());
+        gl_use_material(&self.material);
+        draw_rectangle(-1., -1., 2., 2., WHITE);
+        gl_use_default_material();
+        unsafe { get_internal_gl().flush() };
 
-                let mut output = vec![0u8; self.output_byte_size];
-                unsafe {
-                    gl::glBindFramebuffer(gl::GL_READ_FRAMEBUFFER, internal_id(target.clone()));
-                    gl::glBindBuffer(gl::GL_PIXEL_PACK_BUFFER, *pbo);
-                    gl::glReadPixels(
-                        0,
-                        0,
-                        self.width as _,
-                        self.yuv_height as _,
-                        gl::GL_RGBA,
-                        gl::GL_UNSIGNED_BYTE,
-                        std::ptr::null_mut(),
-                    );
-                    gl::glBindBuffer(gl::GL_PIXEL_PACK_BUFFER, *pbo);
-                    let source =
-                        gl::glMapBuffer(gl::GL_PIXEL_PACK_BUFFER, 0x88B8 /* GL_READ_ONLY */);
-                    if source.is_null() {
-                        gl::glBindBuffer(gl::GL_PIXEL_PACK_BUFFER, 0);
-                        anyhow::bail!("glMapBuffer returned null");
-                    }
-                    std::ptr::copy_nonoverlapping(
-                        source.cast::<u8>(),
-                        output.as_mut_ptr(),
-                        self.output_byte_size,
-                    );
-                    gl::glUnmapBuffer(gl::GL_PIXEL_PACK_BUFFER);
-                    gl::glBindBuffer(gl::GL_PIXEL_PACK_BUFFER, 0);
-                }
-
-                Ok(output)
+        let mut output = vec![0u8; self.output_byte_size];
+        unsafe {
+            gl::glBindFramebuffer(gl::GL_READ_FRAMEBUFFER, internal_id(self.target.clone()));
+            gl::glBindBuffer(gl::GL_PIXEL_PACK_BUFFER, self.pbo);
+            gl::glReadPixels(
+                0,
+                0,
+                self.width as _,
+                self.yuv_height as _,
+                gl::GL_RGBA,
+                gl::GL_UNSIGNED_BYTE,
+                std::ptr::null_mut(),
+            );
+            gl::glBindBuffer(gl::GL_PIXEL_PACK_BUFFER, self.pbo);
+            let source = gl::glMapBuffer(gl::GL_PIXEL_PACK_BUFFER, 0x88B8 /* GL_READ_ONLY */);
+            if source.is_null() {
+                gl::glBindBuffer(gl::GL_PIXEL_PACK_BUFFER, 0);
+                anyhow::bail!("glMapBuffer returned null");
             }
+            std::ptr::copy_nonoverlapping(
+                source.cast::<u8>(),
+                output.as_mut_ptr(),
+                self.output_byte_size,
+            );
+            gl::glUnmapBuffer(gl::GL_PIXEL_PACK_BUFFER);
+            gl::glBindBuffer(gl::GL_PIXEL_PACK_BUFFER, 0);
         }
+
+        Ok(output)
     }
 }
 
 impl Drop for FrameReadback {
     fn drop(&mut self) {
-        if let ReadbackMode::Gpu { pbo, .. } = &self.mode {
-            unsafe {
-                gl::glDeleteBuffers(1, pbo);
-            }
+        unsafe {
+            gl::glDeleteBuffers(1, &self.pbo);
         }
     }
-}
-
-fn software_renderer_name() -> Option<String> {
-    unsafe {
-        let value = gl::glGetString(crate::GL_RENDERER);
-        if value.is_null() {
-            return None;
-        }
-        CStr::from_ptr(value.cast())
-            .to_str()
-            .ok()
-            .map(str::to_owned)
-    }
-}
-
-fn is_software_renderer(name: &str) -> bool {
-    let name = name.to_ascii_lowercase();
-    [
-        "llvmpipe",
-        "softpipe",
-        "swrast",
-        "software rasterizer",
-        "swiftshader",
-    ]
-    .iter()
-    .any(|marker| name.contains(marker))
-}
-
-fn rgb_texture_to_yuv420(texture: &Texture2D, width: u32, height: u32) -> Result<Vec<u8>> {
-    let image = texture.get_texture_data();
-    if image.width as u32 != width || image.height as u32 != height {
-        anyhow::bail!(
-            "texture readback size mismatch: expected {}x{}, got {}x{}",
-            width,
-            height,
-            image.width,
-            image.height
-        );
-    }
-
-    // MSRenderTarget's output texture is RGB8. Macroquad's Image container
-    // allocates four bytes per pixel, but glReadPixels writes three bytes.
-    let expected_rgb_size = (width * height * 3) as usize;
-    if image.bytes.len() < expected_rgb_size {
-        anyhow::bail!(
-            "texture readback buffer too small: expected at least {}, got {}",
-            expected_rgb_size,
-            image.bytes.len()
-        );
-    }
-
-    let y_size = (width * height) as usize;
-    let uv_size = y_size / 4;
-    let mut output = vec![0u8; y_size + uv_size * 2];
-
-    for y in 0..height {
-        for x in 0..width {
-            let pixel = ((y * width + x) * 3) as usize;
-            let r = image.bytes[pixel] as f32;
-            let g = image.bytes[pixel + 1] as f32;
-            let b = image.bytes[pixel + 2] as f32;
-            output[(y * width + x) as usize] = yuv_component(0.299 * r + 0.587 * g + 0.114 * b);
-        }
-    }
-
-    for y in (0..height).step_by(2) {
-        for x in (0..width).step_by(2) {
-            let mut r = 0.0;
-            let mut g = 0.0;
-            let mut b = 0.0;
-            for dy in 0..2 {
-                for dx in 0..2 {
-                    let pixel = (((y + dy) * width + x + dx) * 3) as usize;
-                    r += image.bytes[pixel] as f32;
-                    g += image.bytes[pixel + 1] as f32;
-                    b += image.bytes[pixel + 2] as f32;
-                }
-            }
-            r *= 0.25;
-            g *= 0.25;
-            b *= 0.25;
-            let uv_index = ((y / 2) * (width / 2) + x / 2) as usize;
-            output[y_size + uv_index] =
-                yuv_component(-0.168736 * r - 0.331264 * g + 0.5 * b + 128.0);
-            output[y_size + uv_size + uv_index] =
-                yuv_component(0.5 * r - 0.418688 * g - 0.081312 * b + 128.0);
-        }
-    }
-
-    Ok(output)
-}
-
-fn yuv_component(value: f32) -> u8 {
-    value.round().clamp(0.0, 255.0) as u8
 }
