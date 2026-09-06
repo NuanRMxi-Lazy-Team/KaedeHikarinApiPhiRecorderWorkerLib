@@ -1,4 +1,4 @@
-﻿use std::{
+use std::{
     ffi::c_void,
     panic::{catch_unwind, AssertUnwindSafe},
     path::PathBuf,
@@ -149,15 +149,18 @@ fn dispatcher_loop(job: &phi_job) {
             None => {
                 if host.is_exited() {
                     if !terminal_emitted {
-                        emit(
-                            &job,
-                            phi_job_state_t::Failed,
-                            0.0,
-                            0.0,
-                            0.0,
-                            0.0,
-                            "renderer host exited before a terminal event",
-                        );
+                        let tail = host.stderr_tail();
+                        let tail = tail.trim();
+                        let message = if tail.is_empty() {
+                            "renderer host exited before a terminal event".to_owned()
+                        } else {
+                            let start = tail.len().saturating_sub(1024);
+                            format!(
+                                "renderer host exited before a terminal event: {}",
+                                &tail[start..]
+                            )
+                        };
+                        emit(&job, phi_job_state_t::Failed, 0.0, 0.0, 0.0, 0.0, &message);
                     }
                     break;
                 }

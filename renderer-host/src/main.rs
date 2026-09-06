@@ -43,7 +43,9 @@ enum RenderCommand {
         request: RenderRequestPayload,
         control: Arc<JobControl>,
     },
-    CapabilityProbe { request_id: u64 },
+    CapabilityProbe {
+        request_id: u64,
+    },
     Shutdown,
 }
 
@@ -66,18 +68,26 @@ fn run() -> Result<(), ProtocolError> {
         "the first frame must be a hello message",
     ))?;
     if hello.message_type != MessageType::Hello {
-        send_error(&output_sender, hello.request_id, "the first message must be hello")?;
+        send_error(
+            &output_sender,
+            hello.request_id,
+            "the first message must be hello",
+        )?;
         drop(output_sender);
         let _ = writer_thread.join();
         return Err(ProtocolError::InvalidPayload("missing hello message"));
     }
     if decode_protocol_version(&hello.payload)? != PROTOCOL_VERSION {
-        send_error(&output_sender, hello.request_id, "protocol version mismatch")?;
+        send_error(
+            &output_sender,
+            hello.request_id,
+            "protocol version mismatch",
+        )?;
         drop(output_sender);
         let _ = writer_thread.join();
-        return Err(ProtocolError::UnsupportedVersion(
-            decode_protocol_version(&hello.payload)?,
-        ));
+        return Err(ProtocolError::UnsupportedVersion(decode_protocol_version(
+            &hello.payload,
+        )?));
     }
     send_frame(
         &output_sender,
@@ -134,9 +144,15 @@ fn run() -> Result<(), ProtocolError> {
                     send_error(&output_sender, frame.request_id, &error.to_string())?;
                     continue;
                 }
-                let mut active = active_job.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+                let mut active = active_job
+                    .lock()
+                    .unwrap_or_else(|poisoned| poisoned.into_inner());
                 if active.is_some() {
-                    send_error(&output_sender, frame.request_id, "another render job is active")?;
+                    send_error(
+                        &output_sender,
+                        frame.request_id,
+                        "another render job is active",
+                    )?;
                     continue;
                 }
                 *active = Some(frame.request_id);
@@ -169,10 +185,16 @@ fn run() -> Result<(), ProtocolError> {
                     }
                 };
                 if control.schema_version != JSON_SCHEMA_VERSION {
-                    send_error(&output_sender, frame.request_id, "unsupported control schema")?;
+                    send_error(
+                        &output_sender,
+                        frame.request_id,
+                        "unsupported control schema",
+                    )?;
                     continue;
                 }
-                let active = *active_job.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+                let active = *active_job
+                    .lock()
+                    .unwrap_or_else(|poisoned| poisoned.into_inner());
                 if active != Some(control.job_id) {
                     send_error(&output_sender, frame.request_id, "unknown render job")?;
                     continue;
@@ -183,7 +205,11 @@ fn run() -> Result<(), ProtocolError> {
                     .as_ref()
                     .cloned()
                 else {
-                    send_error(&output_sender, frame.request_id, "render control is unavailable")?;
+                    send_error(
+                        &output_sender,
+                        frame.request_id,
+                        "render control is unavailable",
+                    )?;
                     continue;
                 };
                 match control.command {
@@ -215,6 +241,14 @@ fn render_loop(
     active_job: Arc<Mutex<Option<u64>>>,
     active_control: Arc<Mutex<Option<Arc<JobControl>>>>,
 ) {
+    let runtime = match tokio::runtime::Builder::new_current_thread().build() {
+        Ok(runtime) => runtime,
+        Err(error) => {
+            eprintln!("renderer-host: build tokio runtime: {error}");
+            return;
+        }
+    };
+    let _guard = runtime.enter();
     while let Ok(command) = receiver.recv() {
         match command {
             RenderCommand::Start {
@@ -230,27 +264,26 @@ fn render_loop(
                     );
                     let _ = send_event(&output, job_id, event);
                     if terminal {
-                        *active_job.lock().unwrap_or_else(|poisoned| poisoned.into_inner()) = None;
+                        *active_job
+                            .lock()
+                            .unwrap_or_else(|poisoned| poisoned.into_inner()) = None;
                         *active_control
                             .lock()
                             .unwrap_or_else(|poisoned| poisoned.into_inner()) = None;
                     }
                 }
             }
-            RenderCommand::CapabilityProbe { request_id } => {
-                match probe_headless_context() {
-                    Ok(payload) => {
-                        let _ = send_frame(
-                            &output,
-                            Frame::new(MessageType::CapabilityResult, request_id, 0, payload)
-                                .unwrap(),
-                        );
-                    }
-                    Err(message) => {
-                        let _ = send_error(&output, request_id, &message);
-                    }
+            RenderCommand::CapabilityProbe { request_id } => match probe_headless_context() {
+                Ok(payload) => {
+                    let _ = send_frame(
+                        &output,
+                        Frame::new(MessageType::CapabilityResult, request_id, 0, payload).unwrap(),
+                    );
                 }
-            }
+                Err(message) => {
+                    let _ = send_error(&output, request_id, &message);
+                }
+            },
             RenderCommand::Shutdown => break,
         }
     }
@@ -346,15 +379,15 @@ fn render_video_frames(
     let (width, height) = renderer.output_size();
     let ffmpeg_path = Path::new(&request.resource_roots.ffmpeg_path);
     let output_path = Path::new(&request.output_path);
-                        let mut writer = FfmpegWriter::start(
-                            ffmpeg_path,
-                            width,
-                            height,
-                            renderer.fps(),
-                            renderer.audio_inputs(),
-                            renderer.output_args(),
-                            output_path,
-                        )?;
+    let mut writer = FfmpegWriter::start(
+        ffmpeg_path,
+        width,
+        height,
+        renderer.fps(),
+        renderer.audio_inputs(),
+        renderer.output_args(),
+        output_path,
+    )?;
     let start = Instant::now();
     let mut events = Vec::new();
 

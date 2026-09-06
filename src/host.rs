@@ -4,7 +4,7 @@ use std::{
     process::{Child, Command, Stdio},
     sync::{
         mpsc::{self, Receiver, Sender},
-        Mutex,
+        Arc, Mutex,
     },
     thread::{self, JoinHandle},
 };
@@ -24,6 +24,7 @@ pub struct RendererHost {
     writer: Option<JoinHandle<()>>,
     reader: Option<JoinHandle<()>>,
     stderr: Option<JoinHandle<()>>,
+    stderr_tail: Arc<Mutex<String>>,
     job_id: u64,
 }
 
@@ -46,7 +47,7 @@ impl RendererHost {
             .stdout
             .take()
             .context("renderer host stdout unavailable")?;
-        let stderr = child
+        let mut stderr = child
             .stderr
             .take()
             .context("renderer host stderr unavailable")?;
@@ -84,10 +85,17 @@ impl RendererHost {
             }
         });
 
-        let stderr_reader = thread::spawn(move || {
-            let mut buffer = String::new();
-            let _ = stderr.take(0).read_to_string(&mut buffer);
-        });
+        let stderr_tail = Arc::new(Mutex::new(String::new()));
+        let stderr_reader = {
+            let stderr_tail = Arc::clone(&stderr_tail);
+            thread::spawn(move || {
+                let mut buffer = String::new();
+                let _ = stderr.read_to_string(&mut buffer);
+                if let Ok(mut tail) = stderr_tail.lock() {
+                    *tail = buffer;
+                }
+            })
+        };
 
         let host = Self {
             child: Mutex::new(child),
@@ -96,6 +104,7 @@ impl RendererHost {
             writer: Some(writer),
             reader: Some(reader),
             stderr: Some(stderr_reader),
+            stderr_tail,
             job_id,
         };
 
@@ -150,6 +159,13 @@ impl RendererHost {
             .lock()
             .map(|mut child| child.try_wait().ok().flatten().is_some())
             .unwrap_or(true)
+    }
+
+    pub fn stderr_tail(&self) -> String {
+        self.stderr_tail
+            .lock()
+            .map(|tail| tail.clone())
+            .unwrap_or_default()
     }
 
     pub fn wait_for_terminal(&self) -> Option<JobEvent> {
