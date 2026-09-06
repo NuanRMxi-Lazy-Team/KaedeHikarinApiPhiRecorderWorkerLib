@@ -161,7 +161,8 @@ impl From<ChartInfo> for phire_info::ChartInfo {
 }
 
 pub async fn load_chart_info(path: impl AsRef<Path>) -> Result<ChartInfo> {
-    let mut filesystem: Box<dyn FileSystem + Send + Sync + 'static> = fs::fs_from_file(path.as_ref())?;
+    let mut filesystem: Box<dyn FileSystem + Send + Sync + 'static> =
+        fs::fs_from_file(path.as_ref())?;
     let info = fs::load_info(filesystem.deref_mut()).await?;
     Ok(info.into())
 }

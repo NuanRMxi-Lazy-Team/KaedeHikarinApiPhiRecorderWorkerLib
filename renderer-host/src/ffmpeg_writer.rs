@@ -116,7 +116,11 @@ mod tests {
     }
 
     fn which_ffmpeg() -> Option<PathBuf> {
-        let candidate = if cfg!(windows) { "ffmpeg.exe" } else { "ffmpeg" };
+        let candidate = if cfg!(windows) {
+            "ffmpeg.exe"
+        } else {
+            "ffmpeg"
+        };
         std::env::split_paths(&std::env::var_os("PATH")?)
             .map(|directory| directory.join(candidate))
             .find(|path| path.is_file())

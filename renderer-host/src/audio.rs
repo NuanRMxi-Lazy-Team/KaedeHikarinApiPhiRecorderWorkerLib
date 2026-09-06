@@ -1,15 +1,12 @@
-﻿use std::{
-    io::Write,
-    path::Path,
-};
+use std::{io::Write, path::Path};
 
 use anyhow::{Context, Result};
 use num_complex::Complex;
-use phire::core::ResourcePack;
 use phi_recorder_core::{
     build_audio_filter, build_output_args, calculate_audio_layout, AudioMixMode, RenderConfig,
     RenderTimeline,
 };
+use phire::core::ResourcePack;
 use sasa::AudioClip;
 
 use crate::ffmpeg_writer::AudioInput;
@@ -71,7 +68,10 @@ pub fn build_audio_plan(
     };
 
     let output_ending = if config.volume_music != 0.0 {
-        tile_ending_pcm(&resource_pack.endings[0].to_vec(), layout.ending_music_samples)
+        tile_ending_pcm(
+            &resource_pack.endings[0].to_vec(),
+            layout.ending_music_samples,
+        )
     } else {
         vec![0.0f32; layout.ending_music_samples]
     };
@@ -79,21 +79,19 @@ pub fn build_audio_plan(
     let output_sfx = mix_sfx(config, chart, resource_pack, timeline, layout.sfx_samples)?;
 
     let mut temp_files = Vec::new();
-    let mut write_input =
-        |prefix: &str, samples: &[f32], sample_rate: u32| -> Result<AudioInput> {
-            let mut file = tempfile::Builder::new()
-                .prefix(prefix)
-                .suffix(".f32le")
-                .tempfile_in(temp_dir)
-                .with_context(|| format!("create {prefix} temp file in {}", temp_dir.display()))?;
-            let bytes = unsafe {
-                std::slice::from_raw_parts(samples.as_ptr().cast::<u8>(), samples.len() * 4)
-            };
-            file.write_all(bytes).context("write PCM temp file")?;
-            let path = file.path().to_owned();
-            temp_files.push(file);
-            Ok(AudioInput { path, sample_rate })
-        };
+    let mut write_input = |prefix: &str, samples: &[f32], sample_rate: u32| -> Result<AudioInput> {
+        let mut file = tempfile::Builder::new()
+            .prefix(prefix)
+            .suffix(".f32le")
+            .tempfile_in(temp_dir)
+            .with_context(|| format!("create {prefix} temp file in {}", temp_dir.display()))?;
+        let bytes =
+            unsafe { std::slice::from_raw_parts(samples.as_ptr().cast::<u8>(), samples.len() * 4) };
+        file.write_all(bytes).context("write PCM temp file")?;
+        let path = file.path().to_owned();
+        temp_files.push(file);
+        Ok(AudioInput { path, sample_rate })
+    };
 
     let sfx_input = write_input("sfx", &output_sfx, 48_000)?;
     let music_input = write_input("music", &output_music, music.sample_rate())?;
@@ -140,8 +138,9 @@ fn mix_music_pcm(
     output_len: usize,
 ) -> Vec<f32> {
     let mut output = vec![0.0f32; output_len];
-    let position_write =
-        ((before_time - offset.min(0.0)) * speed as f64 * music_sample_rate as f64).ceil() as usize * 2;
+    let position_write = ((before_time - offset.min(0.0)) * speed as f64 * music_sample_rate as f64)
+        .ceil() as usize
+        * 2;
     let position_read =
         ((offset.max(0.0) + play_start_time) * music_sample_rate as f64).ceil() as usize * 2;
     let music_len = (chart_length_music * music_sample_rate as f64).ceil() as usize * 2;
@@ -279,16 +278,13 @@ fn mix_sfx(
                 .into_iter()
                 .filter(|note| !note.fake && note.time > start_time && note.time < end_time)
             {
-                let position = ((timeline.before_time
-                    + note.time * ratio
-                    + judge_offset
+                let position = ((timeline.before_time + note.time * ratio + judge_offset
                     - config.play_start_time * ratio)
                     * 48_000.0)
                     .ceil() as usize
                     * 2;
-                if let Some((_, positions)) = groups
-                    .iter_mut()
-                    .find(|(sound, _)| *sound == note.sound)
+                if let Some((_, positions)) =
+                    groups.iter_mut().find(|(sound, _)| *sound == note.sound)
                 {
                     positions.push(position);
                 } else {
@@ -298,8 +294,7 @@ fn mix_sfx(
             let mut prepared_groups: Vec<(Vec<f32>, Vec<usize>)> = groups
                 .into_iter()
                 .filter_map(|(sound, positions)| {
-                    get_clip(sound, resource_pack, chart, &names)
-                        .map(|clip| (clip, positions))
+                    get_clip(sound, resource_pack, chart, &names).map(|clip| (clip, positions))
                 })
                 .collect();
             mix_sfx_fft(&mut output, &mut prepared_groups)?;
@@ -310,9 +305,7 @@ fn mix_sfx(
                 .into_iter()
                 .filter(|note| !note.fake && note.time > start_time && note.time < end_time)
                 .filter_map(|note| {
-                    let position = ((timeline.before_time
-                        + note.time * ratio
-                        + judge_offset
+                    let position = ((timeline.before_time + note.time * ratio + judge_offset
                         - config.play_start_time * ratio)
                         * 48_000.0)
                         .ceil() as usize
@@ -335,9 +328,7 @@ fn mix_sfx(
                 .into_iter()
                 .filter(|note| !note.fake && note.time > start_time && note.time < end_time)
                 .filter_map(|note| {
-                    let bucket = ((timeline.before_time
-                        + note.time * ratio
-                        + judge_offset
+                    let bucket = ((timeline.before_time + note.time * ratio + judge_offset
                         - config.play_start_time * ratio)
                         * 200.0)
                         .round() as i64;
@@ -454,7 +445,10 @@ mod tests {
     #[test]
     fn ending_tiles_until_output_is_full() {
         let output = tile_ending_pcm(&[1.0, 2.0], 10);
-        assert_eq!(output, vec![1.0, 2.0, 1.0, 2.0, 1.0, 2.0, 1.0, 2.0, 1.0, 2.0]);
+        assert_eq!(
+            output,
+            vec![1.0, 2.0, 1.0, 2.0, 1.0, 2.0, 1.0, 2.0, 1.0, 2.0]
+        );
     }
 
     #[test]

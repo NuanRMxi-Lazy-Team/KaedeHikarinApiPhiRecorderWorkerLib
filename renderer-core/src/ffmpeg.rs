@@ -172,10 +172,22 @@ mod tests {
     #[test]
     fn bitrate_policy_matches_legacy_encoder_order() {
         let encoders = ["h264_nvenc", "h264_qsv", "h264_amf", "h264_vaapi"];
-        assert_eq!(select_bitrate_control(true, "h264_nvenc", encoders, false, None), "-cq");
-        assert_eq!(select_bitrate_control(true, "h264_qsv", encoders, false, None), "-q");
-        assert_eq!(select_bitrate_control(true, "h264_amf", encoders, false, None), "-qp_p");
-        assert_eq!(select_bitrate_control(false, "libx264", encoders, false, None), "-b:v");
+        assert_eq!(
+            select_bitrate_control(true, "h264_nvenc", encoders, false, None),
+            "-cq"
+        );
+        assert_eq!(
+            select_bitrate_control(true, "h264_qsv", encoders, false, None),
+            "-q"
+        );
+        assert_eq!(
+            select_bitrate_control(true, "h264_amf", encoders, false, None),
+            "-qp_p"
+        );
+        assert_eq!(
+            select_bitrate_control(false, "libx264", encoders, false, None),
+            "-b:v"
+        );
     }
 
     #[test]
@@ -190,7 +202,9 @@ mod tests {
     #[test]
     fn video_args_are_raw_yuv_input() {
         let args = build_video_input_args(1920, 1080, 60, "h264_nvenc", "h264_nvenc");
-        assert!(args.windows(2).any(|pair| pair[0] == "-pix_fmt" && pair[1] == "yuv420p"));
+        assert!(args
+            .windows(2)
+            .any(|pair| pair[0] == "-pix_fmt" && pair[1] == "yuv420p"));
         assert!(args
             .windows(2)
             .any(|pair| pair[0] == "-hwaccel_output_format" && pair[1] == "cuda"));
@@ -202,9 +216,15 @@ mod tests {
         let mp4 = build_output_args("libx264", "-crf", "28", filter, false);
         let mov = build_output_args("libx265", "-b:v", "28", filter, true);
 
-        assert!(mp4.windows(2).any(|pair| pair[0] == "-f" && pair[1] == "mp4"));
-        assert!(mov.windows(2).any(|pair| pair[0] == "-f" && pair[1] == "mov"));
-        assert!(mp4.windows(2).any(|pair| pair[0] == "-b:a" && pair[1] == "320k"));
+        assert!(mp4
+            .windows(2)
+            .any(|pair| pair[0] == "-f" && pair[1] == "mp4"));
+        assert!(mov
+            .windows(2)
+            .any(|pair| pair[0] == "-f" && pair[1] == "mov"));
+        assert!(mp4
+            .windows(2)
+            .any(|pair| pair[0] == "-b:a" && pair[1] == "320k"));
         assert!(!mov.iter().any(|arg| arg == "320k"));
     }
 }

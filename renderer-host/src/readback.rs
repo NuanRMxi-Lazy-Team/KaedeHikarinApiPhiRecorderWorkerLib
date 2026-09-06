@@ -149,10 +149,7 @@ impl FrameReadback {
 
         let mut output = vec![0u8; self.output_byte_size];
         unsafe {
-            gl::glBindFramebuffer(
-                gl::GL_READ_FRAMEBUFFER,
-                internal_id(self.target.clone()),
-            );
+            gl::glBindFramebuffer(gl::GL_READ_FRAMEBUFFER, internal_id(self.target.clone()));
             gl::glBindBuffer(gl::GL_PIXEL_PACK_BUFFER, self.pbo);
             gl::glReadPixels(
                 0,
@@ -169,7 +166,11 @@ impl FrameReadback {
                 gl::glBindBuffer(gl::GL_PIXEL_PACK_BUFFER, 0);
                 anyhow::bail!("glMapBuffer returned null");
             }
-            std::ptr::copy_nonoverlapping(source.cast::<u8>(), output.as_mut_ptr(), self.output_byte_size);
+            std::ptr::copy_nonoverlapping(
+                source.cast::<u8>(),
+                output.as_mut_ptr(),
+                self.output_byte_size,
+            );
             gl::glUnmapBuffer(gl::GL_PIXEL_PACK_BUFFER);
             gl::glBindBuffer(gl::GL_PIXEL_PACK_BUFFER, 0);
         }

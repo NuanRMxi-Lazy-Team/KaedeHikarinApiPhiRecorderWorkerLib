@@ -60,14 +60,16 @@ pub fn calculate_timeline(
     } else {
         0.0
     };
-    let end_time = config.play_end_time.unwrap_or(music_length).min(music_length);
-    let chart_length = before_time
-        + end_time * speed_time_ratio
+    let end_time = config
+        .play_end_time
+        .unwrap_or(music_length)
+        .min(music_length);
+    let chart_length = before_time + end_time * speed_time_ratio
         - config.play_start_time * speed_time_ratio
         - offset
         + constants.wait_time * speed_time_ratio;
-    let chart_length_music = before_time_music + end_time - config.play_start_time - offset
-        + constants.wait_time;
+    let chart_length_music =
+        before_time_music + end_time - config.play_start_time - offset + constants.wait_time;
     let chart_length_sfx = end_time - config.play_start_time - offset + constants.wait_time;
     let video_length = chart_length + config.ending_length;
     let video_length_music = chart_length_music + config.ending_length;
@@ -117,12 +119,12 @@ pub fn calculate_audio_layout(
         return Err(ValidationError::NonNegative("sfx_protect_time"));
     }
 
-    let music_samples = (timeline.video_length_music * music_sample_rate as f64).ceil() as usize * 2;
+    let music_samples =
+        (timeline.video_length_music * music_sample_rate as f64).ceil() as usize * 2;
     let sfx_samples = ((timeline.video_length + sfx_protect_time) * 48_000.0).ceil() as usize * 2;
-    let ending_music_samples = ((timeline.video_length - timeline.ending_music_delay).max(0.0)
-        * 48_000.0)
-        .ceil() as usize
-        * 2;
+    let ending_music_samples =
+        ((timeline.video_length - timeline.ending_music_delay).max(0.0) * 48_000.0).ceil() as usize
+            * 2;
 
     Ok(AudioLayout {
         music_samples,

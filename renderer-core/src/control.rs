@@ -19,21 +19,30 @@ struct ControlState {
 
 impl JobControl {
     pub fn cancel(&self) {
-        let mut state = self.state.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+        let mut state = self
+            .state
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
         state.cancel_requested = true;
         state.pause_requested = false;
         self.changed.notify_all();
     }
 
     pub fn pause(&self) {
-        let mut state = self.state.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+        let mut state = self
+            .state
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
         if !state.cancel_requested {
             state.pause_requested = true;
         }
     }
 
     pub fn resume(&self) {
-        let mut state = self.state.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+        let mut state = self
+            .state
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
         state.pause_requested = false;
         self.changed.notify_all();
     }
@@ -53,7 +62,10 @@ impl JobControl {
     }
 
     pub fn wait_if_paused(&self) -> Result<(), ControlError> {
-        let mut state = self.state.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+        let mut state = self
+            .state
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
         while state.pause_requested && !state.cancel_requested {
             state = self
                 .changed

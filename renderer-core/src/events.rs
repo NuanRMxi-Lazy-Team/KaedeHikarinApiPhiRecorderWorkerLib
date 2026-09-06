@@ -7,7 +7,10 @@ pub enum JobEventKind {
     Started,
     Loading,
     Mixing,
-    MixingSfx { completed: u64, total: u64 },
+    MixingSfx {
+        completed: u64,
+        total: u64,
+    },
     Rendering {
         completed: u64,
         total: u64,
@@ -16,9 +19,13 @@ pub enum JobEventKind {
     },
     Paused,
     Resumed,
-    Done { duration_seconds: f64 },
+    Done {
+        duration_seconds: f64,
+    },
     Canceled,
-    Failed { message: Arc<str> },
+    Failed {
+        message: Arc<str>,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq)]

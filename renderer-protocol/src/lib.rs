@@ -204,7 +204,9 @@ pub struct RenderRequestPayload {
 impl RenderRequestPayload {
     pub fn validate(&self) -> Result<(), ProtocolError> {
         if self.schema_version != JSON_SCHEMA_VERSION {
-            return Err(ProtocolError::InvalidPayload("unsupported render request schema"));
+            return Err(ProtocolError::InvalidPayload(
+                "unsupported render request schema",
+            ));
         }
         if self.chart_path.is_empty() || self.output_path.is_empty() {
             return Err(ProtocolError::InvalidPayload(
@@ -212,7 +214,9 @@ impl RenderRequestPayload {
             ));
         }
         if self.render_config_json.is_empty() {
-            return Err(ProtocolError::InvalidPayload("render config cannot be empty"));
+            return Err(ProtocolError::InvalidPayload(
+                "render config cannot be empty",
+            ));
         }
         Ok(())
     }

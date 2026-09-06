@@ -47,8 +47,8 @@ impl PreparedFrameRenderer {
         };
         roots.validate().map_err(|error| anyhow::anyhow!(error))?;
 
-        let config: RenderConfig = serde_json::from_str(&request.render_config_json)
-            .context("invalid render config")?;
+        let config: RenderConfig =
+            serde_json::from_str(&request.render_config_json).context("invalid render config")?;
         config.validate().map_err(|error| anyhow::anyhow!(error))?;
         let mut phire_config = config.to_phire_config();
         phire_config.mods = phire::config::Mods::AUTOPLAY;
@@ -98,7 +98,9 @@ impl PreparedFrameRenderer {
             &roots.temp_dir,
         )?;
 
-        let fonts = vec![FontArc::try_from_vec(macroquad::file::load_file("font.ttf").await?)?];
+        let fonts = vec![FontArc::try_from_vec(
+            macroquad::file::load_file("font.ttf").await?,
+        )?];
         let painter = TextPainter::new(fonts);
         let player = BasicPlayer {
             avatar: None,
@@ -125,19 +127,21 @@ impl PreparedFrameRenderer {
             (black.clone(), black)
         });
         let main = Main::new(
-            Box::new(GameScene::new(
-                Some((chart, format)),
-                GameMode::Normal,
-                info,
-                phire_config,
-                filesystem,
-                Some(player),
-                background.into(),
-                illustration.into(),
-                None,
-                None,
-            )
-            .await?),
+            Box::new(
+                GameScene::new(
+                    Some((chart, format)),
+                    GameMode::Normal,
+                    info,
+                    phire_config,
+                    filesystem,
+                    Some(player),
+                    background.into(),
+                    illustration.into(),
+                    None,
+                    None,
+                )
+                .await?,
+            ),
             time_manager,
             {
                 let target = Rc::clone(&target);
@@ -198,5 +202,4 @@ impl PreparedFrameRenderer {
     pub fn output_args(&self) -> &[String] {
         self.audio_plan.output_args()
     }
-
 }

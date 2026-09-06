@@ -7,8 +7,8 @@ mod request;
 mod timeline;
 mod validation;
 
-pub use config::{AudioMixMode, ChallengeColor, RenderConfig, Resolution};
 pub use chart::{load_chart_info, load_chart_info_blocking, ChartFormat, ChartInfo};
+pub use config::{AudioMixMode, ChallengeColor, RenderConfig, Resolution};
 pub use control::{ControlError, JobControl};
 pub use events::{EventSink, JobEvent, JobEventKind, JobId, NoopEventSink};
 pub use ffmpeg::{
@@ -16,5 +16,7 @@ pub use ffmpeg::{
     AudioFilterPlan, FfmpegPlan, VideoEncoderKind,
 };
 pub use request::{RenderRequest, ResourceRoots};
-pub use timeline::{calculate_audio_layout, calculate_timeline, AudioLayout, RenderTimeline, TimingConstants};
+pub use timeline::{
+    calculate_audio_layout, calculate_timeline, AudioLayout, RenderTimeline, TimingConstants,
+};
 pub use validation::ValidationError;
