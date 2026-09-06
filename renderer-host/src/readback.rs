@@ -1,3 +1,5 @@
+use std::ffi::CStr;
+
 use anyhow::{Context, Result};
 use macroquad::{
     miniquad::gl::{self, GLuint},
@@ -98,8 +100,8 @@ impl FrameReadback {
         let yuv_height = (height * 3).div_ceil(8);
         let output_byte_size = (width * height * 3 / 2) as usize;
 
-        if let Some(renderer_name) = crate::gl_utils::renderer_name()
-            .filter(|name| crate::gl_utils::is_software_renderer(name))
+        if let Some(renderer_name) =
+            software_renderer_name().filter(|name| is_software_renderer(name))
         {
             eprintln!(
                 "renderer-host: software GL renderer detected ({renderer_name}), using CPU YUV readback"
@@ -225,6 +227,32 @@ impl Drop for FrameReadback {
             }
         }
     }
+}
+
+fn software_renderer_name() -> Option<String> {
+    unsafe {
+        let value = gl::glGetString(crate::GL_RENDERER);
+        if value.is_null() {
+            return None;
+        }
+        CStr::from_ptr(value.cast())
+            .to_str()
+            .ok()
+            .map(str::to_owned)
+    }
+}
+
+fn is_software_renderer(name: &str) -> bool {
+    let name = name.to_ascii_lowercase();
+    [
+        "llvmpipe",
+        "softpipe",
+        "swrast",
+        "software rasterizer",
+        "swiftshader",
+    ]
+    .iter()
+    .any(|marker| name.contains(marker))
 }
 
 fn rgb_texture_to_yuv420(texture: &Texture2D, width: u32, height: u32) -> Result<Vec<u8>> {

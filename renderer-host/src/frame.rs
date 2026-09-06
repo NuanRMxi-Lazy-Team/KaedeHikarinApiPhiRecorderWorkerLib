@@ -145,18 +145,9 @@ impl PreparedFrameRenderer {
             id: 0,
             rks: config.player_rks,
         };
-        let sample_count = match crate::gl_utils::renderer_name() {
-            Some(renderer_name) if crate::gl_utils::is_software_renderer(&renderer_name) => {
-                eprintln!(
-                    "renderer-host: software GL renderer detected ({renderer_name}), using single-sample render target"
-                );
-                1
-            }
-            _ => config.sample_count,
-        };
         let target = Rc::new(MSRenderTarget::new(
             (config.resolution.width, config.resolution.height),
-            sample_count,
+            config.sample_count,
         ));
         let time = Rc::new(RefCell::new(0.0));
         let time_manager = TimeManager::manual({

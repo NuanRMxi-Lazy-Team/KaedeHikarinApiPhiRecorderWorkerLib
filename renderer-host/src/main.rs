@@ -23,7 +23,6 @@ mod ffmpeg_writer;
 use ffmpeg_writer::FfmpegWriter;
 mod audio;
 mod encoder;
-mod gl_utils;
 mod readback;
 use readback::FrameReadback;
 
