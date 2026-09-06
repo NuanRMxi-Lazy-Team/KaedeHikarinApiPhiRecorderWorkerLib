@@ -11,6 +11,7 @@ path = "src/main.rs"
 
 [dependencies]
 anyhow = "1.0.95"
+async-trait = "0.1"
 macroquad = { git = "https://github.com/2278535805/macroquad", default-features = false }
 num-complex = "0.4.6"
 phi-recorder-protocol = { path = "../renderer-protocol" }

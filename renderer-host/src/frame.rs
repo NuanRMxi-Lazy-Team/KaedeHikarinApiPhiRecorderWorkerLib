@@ -1,6 +1,7 @@
-use std::{cell::RefCell, ops::DerefMut, path::PathBuf, rc::Rc};
+use std::{cell::RefCell, path::PathBuf, rc::Rc};
 
 use anyhow::{Context, Result};
+use async_trait::async_trait;
 use macroquad::prelude::*;
 use phire::{
     core::{MSRenderTarget, ResourcePack},
@@ -16,6 +17,38 @@ use phi_recorder_core::{
 use phi_recorder_protocol::RenderRequestPayload;
 
 use crate::{audio::AudioPlan, ffmpeg_writer::AudioInput};
+
+/// Wraps the chart filesystem so that an empty `extra.json`/`extra1.json` is
+/// treated as missing: RPE 1.7.0 exports a zero-byte extra file when the chart
+/// has no extras, and phire would otherwise fail to parse the empty JSON.
+struct EmptyExtraFileSystem(Box<dyn FileSystem + 'static>);
+
+#[async_trait]
+impl FileSystem for EmptyExtraFileSystem {
+    async fn load_file(&mut self, path: &str) -> Result<Vec<u8>> {
+        let bytes = self.0.load_file(path).await?;
+        if matches!(path, "extra.json" | "extra1.json") && bytes.is_empty() {
+            anyhow::bail!("empty extra file, treated as missing");
+        }
+        Ok(bytes)
+    }
+
+    async fn exists(&mut self, path: &str) -> Result<bool> {
+        self.0.exists(path).await
+    }
+
+    fn list_root(&self) -> Result<Vec<String>> {
+        self.0.list_root()
+    }
+
+    fn clone_box(&self) -> Box<dyn FileSystem> {
+        Box::new(EmptyExtraFileSystem(self.0.clone_box()))
+    }
+
+    fn as_any(&mut self) -> &mut dyn std::any::Any {
+        self.0.as_any()
+    }
+}
 
 pub struct PreparedFrameRenderer {
     main: Main,
@@ -54,19 +87,20 @@ impl PreparedFrameRenderer {
         phire_config.mods = phire::config::Mods::AUTOPLAY;
 
         macroquad::file::set_pc_assets_folder(&roots.assets_dir.to_string_lossy());
-        let mut filesystem: Box<dyn FileSystem + 'static> =
-            phire::fs::fs_from_file(PathBuf::from(&request.chart_path).as_path())?;
+        let mut filesystem: Box<dyn FileSystem> = Box::new(EmptyExtraFileSystem(
+            phire::fs::fs_from_file(PathBuf::from(&request.chart_path).as_path())?,
+        ));
         let info = if let Some(info_json) = &request.chart_info_json {
             serde_json::from_str::<ChartInfo>(info_json).context("invalid chart info")?
         } else {
-            phire::fs::load_info(filesystem.deref_mut()).await?.into()
+            phire::fs::load_info(filesystem.as_mut()).await?.into()
         };
         let info: phire::info::ChartInfo = info.into();
         if control.is_cancel_requested() {
             anyhow::bail!("render canceled");
         }
 
-        let (chart, format) = GameScene::load_chart(filesystem.deref_mut(), &info, &phire_config)
+        let (chart, format) = GameScene::load_chart(filesystem.as_mut(), &info, &phire_config)
             .await
             .context("load chart")?;
         let resource_pack_path = phire_config

@@ -353,7 +353,7 @@ fn prepare_resources(request: RenderRequestPayload, control: Arc<JobControl>) ->
                     events.push(JobEvent::Canceled);
                 } else {
                     events.push(JobEvent::Failed {
-                        message: error.to_string(),
+                        message: format!("{error:#}"),
                     });
                 }
             }
