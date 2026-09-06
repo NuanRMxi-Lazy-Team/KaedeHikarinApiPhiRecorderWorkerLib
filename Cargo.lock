@@ -2786,7 +2786,7 @@ dependencies = [
  "phi-recorder-protocol",
  "phire",
  "realfft",
- "sasa 0.1.0 (git+https://github.com/2278535805/sasa?rev=3f229a822c71c2391dbfc1a254dacaa0bb67d11e)",
+ "sasa",
  "serde_json",
  "tempfile",
  "tokio",
@@ -2795,7 +2795,7 @@ dependencies = [
 [[package]]
 name = "phire"
 version = "0.4.0"
-source = "git+https://github.com/2278535805/phire?rev=2cd1277e468e9c7eb0e2eb5e2b9295ce4a5cba79#2cd1277e468e9c7eb0e2eb5e2b9295ce4a5cba79"
+source = "git+https://github.com/NuanRMxi-Lazy-Team/phire?rev=8b57017231143fd401fc8f559077dded767c3dfc#8b57017231143fd401fc8f559077dded767c3dfc"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -2844,7 +2844,7 @@ dependencies = [
  "regex",
  "rfd",
  "rustc-hash",
- "sasa 0.1.0 (git+https://github.com/2278535805/sasa)",
+ "sasa",
  "serde",
  "serde_json",
  "serde_yaml",
@@ -2946,10 +2946,10 @@ dependencies = [
 [[package]]
 name = "prpr-avc"
 version = "0.1.0"
-source = "git+https://github.com/2278535805/phire?rev=2cd1277e468e9c7eb0e2eb5e2b9295ce4a5cba79#2cd1277e468e9c7eb0e2eb5e2b9295ce4a5cba79"
+source = "git+https://github.com/NuanRMxi-Lazy-Team/phire?rev=8b57017231143fd401fc8f559077dded767c3dfc#8b57017231143fd401fc8f559077dded767c3dfc"
 dependencies = [
  "anyhow",
- "sasa 0.1.0 (git+https://github.com/2278535805/sasa)",
+ "sasa",
  "thiserror 2.0.20",
  "tracing",
 ]
@@ -3365,21 +3365,7 @@ dependencies = [
 [[package]]
 name = "sasa"
 version = "0.1.0"
-source = "git+https://github.com/2278535805/sasa?rev=3f229a822c71c2391dbfc1a254dacaa0bb67d11e#3f229a822c71c2391dbfc1a254dacaa0bb67d11e"
-dependencies = [
- "anyhow",
- "atomic_float",
- "cpal",
- "parking_lot",
- "ringbuf",
- "symphonia",
- "thiserror 2.0.20",
-]
-
-[[package]]
-name = "sasa"
-version = "0.1.0"
-source = "git+https://github.com/2278535805/sasa#3f229a822c71c2391dbfc1a254dacaa0bb67d11e"
+source = "git+https://github.com/NuanRMxi-Lazy-Team/sasa?rev=35d2a9c84cbcf8754f8d21e1c345d9f08664426e#35d2a9c84cbcf8754f8d21e1c345d9f08664426e"
 dependencies = [
  "anyhow",
  "atomic_float",

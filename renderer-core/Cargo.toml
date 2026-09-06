@@ -11,7 +11,7 @@ name = "phi_recorder_core"
 [dependencies]
 anyhow = "1.0.95"
 chrono = { version = "0.4.28", features = ["serde"] }
-phire = { git = "https://github.com/2278535805/phire", rev = "2cd1277e468e9c7eb0e2eb5e2b9295ce4a5cba79", package = "phire", default-features = false, features = ["log", "video"] }
+phire = { git = "https://github.com/NuanRMxi-Lazy-Team/phire", rev = "8b57017231143fd401fc8f559077dded767c3dfc", package = "phire", default-features = false, features = ["log", "video", "silent-audio"] }
 serde = { version = "1.0", features = ["derive"] }
 tokio = { version = "1.45.0", features = ["fs", "rt", "rt-multi-thread"] }
 
