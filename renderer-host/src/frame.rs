@@ -21,6 +21,7 @@ pub struct PreparedFrameRenderer {
     _resource_pack: ResourcePack,
     width: u32,
     height: u32,
+    fps: u32,
 }
 
 impl PreparedFrameRenderer {
@@ -141,6 +142,7 @@ impl PreparedFrameRenderer {
                 _resource_pack: resource_pack,
                 width: config.resolution.width,
                 height: config.resolution.height,
+                fps: config.fps,
             },
             music_length,
             music_sample_rate,
@@ -158,6 +160,10 @@ impl PreparedFrameRenderer {
 
     pub fn output_size(&self) -> (u32, u32) {
         (self.width, self.height)
+    }
+
+    pub fn fps(&self) -> u32 {
+        self.fps
     }
 
     pub fn output_texture(&self) -> Texture2D {

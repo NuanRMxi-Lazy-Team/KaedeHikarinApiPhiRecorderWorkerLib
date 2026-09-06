@@ -1,11 +1,13 @@
 use std::{
     ffi::CStr,
     io::{self, BufReader, BufWriter},
+    path::Path,
     sync::{
         mpsc::{self, Receiver, Sender},
         Arc, Mutex,
     },
     thread,
+    time::Instant,
 };
 
 use macroquad::miniquad::gl::glGetString;
@@ -17,6 +19,8 @@ use phi_recorder_protocol::{
 };
 mod frame;
 use frame::PreparedFrameRenderer;
+mod ffmpeg_writer;
+use ffmpeg_writer::FfmpegWriter;
 mod readback;
 use readback::FrameReadback;
 
@@ -298,19 +302,33 @@ fn prepare_resources(request: RenderRequestPayload, control: Arc<JobControl>) ->
                 if control.is_cancel_requested() {
                     events.push(JobEvent::Canceled);
                 } else {
+                    let start = Instant::now();
                     events.push(JobEvent::ResourcesReady {
                         music_seconds,
                         music_sample_rate,
                     });
                     match renderer.render_one_frame(0.0).and_then(|()| {
                         let readback = FrameReadback::new(&renderer)?;
-                        readback.read_frame(&renderer).map(|_| ())
+                        let frame = readback.read_frame(&renderer)?;
+                        let (width, height) = renderer.output_size();
+                        let ffmpeg_path = Path::new(&request.resource_roots.ffmpeg_path);
+                        let output_path = Path::new(&request.output_path);
+                        let mut writer = FfmpegWriter::start(
+                            ffmpeg_path,
+                            width,
+                            height,
+                            renderer.fps(),
+                            output_path,
+                        )?;
+                        writer.write_frame(&frame)?;
+                        writer.finish()?;
+                        Ok(())
                     }) {
                         Ok(()) => {
                             let (width, height) = renderer.output_size();
                             events.push(JobEvent::FrameReady { width, height });
-                            events.push(JobEvent::Failed {
-                                message: "video encoder is not connected yet".to_owned(),
+                            events.push(JobEvent::Done {
+                                duration_seconds: start.elapsed().as_secs_f64(),
                             });
                         }
                         Err(error) => events.push(JobEvent::Failed {
