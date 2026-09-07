@@ -24,6 +24,9 @@ tempfile = "3"
 resolver = "2"
 members = ["renderer-protocol", "renderer-host"]
 
+[patch."https://github.com/2278535805/miniquad"]
+miniquad = { git = "https://github.com/NuanRMxi-Lazy-Team/miniquad", rev = "b3aaa47a3c42cd99e64ec8a96b325cdd799fd2dc" }
+
 [profile.release]
 lto = "thin"
 strip = true

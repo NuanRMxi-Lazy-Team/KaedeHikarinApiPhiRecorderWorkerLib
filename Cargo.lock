@@ -1743,7 +1743,7 @@ checksum = "cf8baf1c55e62ffcace7a9f06f4bd9cd3f0c4beb022d3b367256b91b87513d98"
 [[package]]
 name = "miniquad"
 version = "0.4.10"
-source = "git+https://github.com/2278535805/miniquad#cccbc8194b8ad77e36d078b11ff01d4e617198d2"
+source = "git+https://github.com/NuanRMxi-Lazy-Team/miniquad?rev=b3aaa47a3c42cd99e64ec8a96b325cdd799fd2dc#b3aaa47a3c42cd99e64ec8a96b325cdd799fd2dc"
 dependencies = [
  "hms-opengtx-binding",
  "jni 0.21.1",
