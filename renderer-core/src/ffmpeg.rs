@@ -32,8 +32,10 @@ pub fn select_bitrate_control(
     }
     if encoder == encoder_list[0] && !mpeg4 {
         "-cq"
-    } else if encoder == encoder_list[1] || mpeg4 || encoder == encoder_list[3] {
+    } else if encoder == encoder_list[1] || mpeg4 {
         "-q"
+    } else if encoder.ends_with("_vaapi") {
+        "-qp"
     } else if encoder == encoder_list[2] {
         "-qp_p"
     } else if custom_encoder == Some(encoder) {
@@ -110,6 +112,9 @@ pub fn build_output_args(
         bitrate_control.to_owned(),
         bitrate.to_owned(),
     ];
+    if bitrate_control == "-qp" && encoder.ends_with("_vaapi") {
+        args.extend(["-rc_mode".to_owned(), "CQP".to_owned()]);
+    }
     if let Some(audio_bitrate) = audio_bitrate {
         args.extend(["-b:a".to_owned(), audio_bitrate.to_owned()]);
     }
@@ -185,6 +190,10 @@ mod tests {
             "-qp_p"
         );
         assert_eq!(
+            select_bitrate_control(true, "h264_vaapi", encoders, false, None),
+            "-qp"
+        );
+        assert_eq!(
             select_bitrate_control(false, "libx264", encoders, false, None),
             "-b:v"
         );
@@ -226,5 +235,18 @@ mod tests {
             .windows(2)
             .any(|pair| pair[0] == "-b:a" && pair[1] == "320k"));
         assert!(!mov.iter().any(|arg| arg == "320k"));
+    }
+
+    #[test]
+    fn vaapi_quality_args_use_constant_qp_mode() {
+        let filter = "[a1][a2][a3]amix=inputs=3[a]";
+        let args = build_output_args("hevc_vaapi", "-qp", "20", filter, false);
+
+        assert!(args
+            .windows(2)
+            .any(|pair| pair[0] == "-qp" && pair[1] == "20"));
+        assert!(args
+            .windows(2)
+            .any(|pair| pair[0] == "-rc_mode" && pair[1] == "CQP"));
     }
 }
