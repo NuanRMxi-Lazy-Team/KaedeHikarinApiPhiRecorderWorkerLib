@@ -351,49 +351,56 @@ fn prepare_resources(
     macroquad::Window::from_config(config, async move {
         let _ = send_event(&output, job_id, JobEvent::Started);
         let _ = send_event(&output, job_id, JobEvent::Loading);
-        let terminal =
-            if let Some(message) = msaa_software_renderer_failure(&request.render_config_json) {
-                Some(JobEvent::Failed { message })
-            } else {
-                match PreparedFrameRenderer::prepare(&request, &control).await {
-                    Ok((mut renderer, music_seconds, music_sample_rate, video_frames)) => {
-                        if control.is_cancel_requested() {
-                            Some(JobEvent::Canceled)
-                        } else {
-                            let _ = send_event(
-                                &output,
-                                job_id,
-                                JobEvent::ResourcesReady {
-                                    music_seconds,
-                                    music_sample_rate,
-                                },
-                            );
-                            match render_video_frames(
-                                &mut renderer,
-                                &request,
-                                &control,
-                                video_frames,
-                                job_id,
-                                &output,
-                            ) {
-                                Ok(event) => event,
-                                Err(error) => Some(JobEvent::Failed {
-                                    message: format!("render video: {error:#}"),
-                                }),
-                            }
-                        }
-                    }
-                    Err(error) => {
-                        if control.is_cancel_requested() {
-                            Some(JobEvent::Canceled)
-                        } else {
-                            Some(JobEvent::Failed {
-                                message: format!("{error:#}"),
-                            })
+        if let Ok(capabilities) = unsafe { collect_graphics_capabilities() } {
+            eprintln!(
+                "renderer-host: graphics capability {}",
+                String::from_utf8_lossy(&capabilities)
+            );
+        }
+        let terminal = if let Some(message) = graphics_context_failure() {
+            Some(JobEvent::Failed { message })
+        } else if let Some(message) = msaa_software_renderer_failure(&request.render_config_json) {
+            Some(JobEvent::Failed { message })
+        } else {
+            match PreparedFrameRenderer::prepare(&request, &control).await {
+                Ok((mut renderer, music_seconds, music_sample_rate, video_frames)) => {
+                    if control.is_cancel_requested() {
+                        Some(JobEvent::Canceled)
+                    } else {
+                        let _ = send_event(
+                            &output,
+                            job_id,
+                            JobEvent::ResourcesReady {
+                                music_seconds,
+                                music_sample_rate,
+                            },
+                        );
+                        match render_video_frames(
+                            &mut renderer,
+                            &request,
+                            &control,
+                            video_frames,
+                            job_id,
+                            &output,
+                        ) {
+                            Ok(event) => event,
+                            Err(error) => Some(JobEvent::Failed {
+                                message: format!("render video: {error:#}"),
+                            }),
                         }
                     }
                 }
-            };
+                Err(error) => {
+                    if control.is_cancel_requested() {
+                        Some(JobEvent::Canceled)
+                    } else {
+                        Some(JobEvent::Failed {
+                            message: format!("{error:#}"),
+                        })
+                    }
+                }
+            }
+        };
         if let Some(event) = terminal {
             let _ = sender.send(vec![event]);
         }
@@ -418,8 +425,19 @@ fn msaa_software_renderer_failure(render_config_json: &str) -> Option<String> {
 
     let renderer_name = unsafe { read_gl_string(GL_RENDERER) }
         .unwrap_or_else(|| "unknown OpenGL renderer".to_owned());
+    let software = is_software_renderer(&renderer_name);
+    if software {
+        return Some(format!(
+            "MSAA cannot be enabled without a hardware OpenGL context: requested sampleCount={sample_count}, detected renderer={renderer_name}; use sampleCount=1 or deploy with hardware OpenGL"
+        ));
+    }
+
+    None
+}
+
+fn is_software_renderer(renderer_name: &str) -> bool {
     let renderer_lower = renderer_name.to_ascii_lowercase();
-    let software = [
+    [
         "llvmpipe",
         "softpipe",
         "swrast",
@@ -427,13 +445,30 @@ fn msaa_software_renderer_failure(render_config_json: &str) -> Option<String> {
         "swiftshader",
     ]
     .iter()
-    .any(|marker| renderer_lower.contains(marker));
-    if software {
+    .any(|marker| renderer_lower.contains(marker))
+}
+
+fn graphics_context_failure() -> Option<String> {
+    let mode = std::env::var("PHI_RENDERER_GRAPHICS_MODE")
+        .unwrap_or_else(|_| "auto".to_owned())
+        .to_ascii_lowercase();
+    if !matches!(mode.as_str(), "auto" | "hardware" | "software") {
         return Some(format!(
-            "MSAA cannot be enabled without a hardware OpenGL context: requested sampleCount={sample_count}, detected renderer={renderer_name}; use sampleCount=1 or deploy with hardware OpenGL"
+            "unsupported PHI_RENDERER_GRAPHICS_MODE={mode}; expected auto, hardware or software"
         ));
     }
 
+    let renderer_name = unsafe { read_gl_string(GL_RENDERER) }
+        .unwrap_or_else(|| "unknown OpenGL renderer".to_owned());
+    let software = is_software_renderer(&renderer_name);
+    if mode == "hardware" && software {
+        return Some(format!(
+            "hardware OpenGL was required but a software renderer was selected: {renderer_name}"
+        ));
+    }
+    if mode == "auto" && software {
+        eprintln!("renderer-host: graphics mode auto selected software renderer {renderer_name}; use PHI_RENDERER_GRAPHICS_MODE=hardware to fail instead");
+    }
     None
 }
 
@@ -538,15 +573,20 @@ unsafe fn collect_graphics_capabilities() -> Result<Vec<u8>, String> {
     }
 
     let renderer_name = renderer.clone().unwrap_or_default();
-    let renderer_lower = renderer_name.to_ascii_lowercase();
-    let software_renderer = ["llvmpipe", "software", "swiftshader", "softpipe"]
-        .iter()
-        .any(|name| renderer_lower.contains(name));
+    let software_renderer = is_software_renderer(&renderer_name);
+    let graphics_backend = if cfg!(target_os = "linux") {
+        "egl-pbuffer"
+    } else {
+        "native"
+    };
 
     serde_json::to_vec(&serde_json::json!({
         "status": "ok",
         "headless": true,
         "graphicsContext": true,
+        "graphicsBackend": graphics_backend,
+        "surface": if cfg!(target_os = "linux") { "pbuffer" } else { "native" },
+        "clientApi": "OpenGL",
         "softwareRenderer": software_renderer,
         "glVendor": vendor,
         "glRenderer": renderer,

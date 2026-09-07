@@ -24,9 +24,9 @@ The renderer host must keep logs on stderr. stdout is reserved for protocol
 frames so the parent can distinguish protocol corruption from diagnostics.
 
 `CapabilityProbe` requests a minimal headless graphics context check. The host
-returns `CapabilityResult` with JSON fields for the context status and GL
-identity strings, or an `Error` frame if the platform cannot create a usable
-context.
+returns `CapabilityResult` with JSON fields for the context status, backend,
+surface, client API, and GL identity strings, or an `Error` frame if the
+platform cannot create a usable context.
 
 The probe is intentionally performed by the private host process rather than
 inside the DLL. A graphics-driver crash or an unavailable display backend can
