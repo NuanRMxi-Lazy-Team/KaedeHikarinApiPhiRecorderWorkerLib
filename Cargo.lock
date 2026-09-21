@@ -2747,7 +2747,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "chrono",
- "phire",
+ "phire 0.4.0 (git+https://github.com/NuanRMxi-Lazy-Team/phire?rev=8b57017231143fd401fc8f559077dded767c3dfc)",
  "serde",
  "tempfile",
  "tokio",
@@ -2784,12 +2784,84 @@ dependencies = [
  "num-complex",
  "phi-recorder-core",
  "phi-recorder-protocol",
- "phire",
+ "phire 0.4.0 (git+https://github.com/NuanRMxi-Lazy-Team/phire?rev=071ece9e62cd3f75dae9534006925212b432956e)",
  "realfft",
  "sasa",
  "serde_json",
  "tempfile",
  "tokio",
+]
+
+[[package]]
+name = "phire"
+version = "0.4.0"
+source = "git+https://github.com/NuanRMxi-Lazy-Team/phire?rev=071ece9e62cd3f75dae9534006925212b432956e#071ece9e62cd3f75dae9534006925212b432956e"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "base64",
+ "bitflags 2.13.1",
+ "block",
+ "byteorder",
+ "cfg-if",
+ "chardetng",
+ "chinese-number",
+ "chrono",
+ "color-thief",
+ "colored",
+ "concat-string",
+ "csv",
+ "fastblur",
+ "fluent",
+ "fluent-syntax",
+ "glyph_brush",
+ "hex",
+ "hmac",
+ "image",
+ "inputbox",
+ "intl-memoizer",
+ "js-sys",
+ "lazy_static",
+ "libc",
+ "lru",
+ "lyon",
+ "macroquad",
+ "miniz_oxide 0.8.9",
+ "nalgebra",
+ "ndk-context",
+ "obfstr",
+ "objc",
+ "objc-foundation",
+ "objc_id",
+ "once_cell",
+ "open",
+ "ordered-float 3.9.2",
+ "phf",
+ "prpr-avc 0.1.0 (git+https://github.com/NuanRMxi-Lazy-Team/phire?rev=071ece9e62cd3f75dae9534006925212b432956e)",
+ "rand 0.9.5",
+ "rand_pcg",
+ "rayon",
+ "regex",
+ "rfd",
+ "rustc-hash",
+ "sasa",
+ "serde",
+ "serde_json",
+ "serde_yaml",
+ "sha2",
+ "subtle",
+ "symphonia",
+ "sys-locale",
+ "tempfile",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+ "unic-langid",
+ "walkdir",
+ "wasm-bindgen",
+ "wasm-bindgen-futures",
+ "web-sys",
+ "zip",
 ]
 
 [[package]]
@@ -2837,7 +2909,7 @@ dependencies = [
  "open",
  "ordered-float 3.9.2",
  "phf",
- "prpr-avc",
+ "prpr-avc 0.1.0 (git+https://github.com/NuanRMxi-Lazy-Team/phire?rev=8b57017231143fd401fc8f559077dded767c3dfc)",
  "rand 0.9.5",
  "rand_pcg",
  "rayon",
@@ -2941,6 +3013,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "985e7ec9bb745e6ce6535b544d84d6cd6f7ad8bd711c398938ae983b91a766d9"
 dependencies = [
  "unicode-ident",
+]
+
+[[package]]
+name = "prpr-avc"
+version = "0.1.0"
+source = "git+https://github.com/NuanRMxi-Lazy-Team/phire?rev=071ece9e62cd3f75dae9534006925212b432956e#071ece9e62cd3f75dae9534006925212b432956e"
+dependencies = [
+ "anyhow",
+ "sasa",
+ "thiserror 2.0.20",
+ "tracing",
 ]
 
 [[package]]
